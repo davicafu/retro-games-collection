@@ -138,7 +138,7 @@ func (g *runtimeGame) Render(_ context.Context, screen runtime.Screen) error {
 	layout := defaultPlayfieldLayout(12, 12)
 	if shouldUseProjectedLayout(screen, layout) {
 		scoreStr := fmt.Sprintf("Score: %d", g.Score())
-		writeStr(screen, 1, 0, padRight(scoreStr, layout.totalWidth()-1))
+		render.WriteText(screen, 1, 0, render.PadRight(scoreStr, layout.totalWidth()-1))
 	}
 
 	Draw(screen, g.Body(), g.Food())

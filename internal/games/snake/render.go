@@ -97,12 +97,13 @@ func DrawOverlay(screen render.Screen, overlay *OverlayModel) {
 	numHeader := len(titleLines)
 	numOptions := len(overlay.Options())
 	contentHeight := numHeader + 1 + numOptions // header + separator + options
-	boxHeight := contentHeight + 2              // + top/bottom borders
 
-	drawBoxSized(screen, boxX, boxY, boxW, boxHeight)
+	// Fill interior so nothing shows through from behind
+	render.FillRect(screen, boxX+1, boxY+1, boxW, contentHeight, ' ')
+	render.DrawBox(screen, boxX, boxY, boxW, contentHeight)
 
 	for i, line := range titleLines {
-		writeStr(screen, boxX+1, boxY+1+i, padRight(line, boxW))
+		render.WriteText(screen, boxX+1, boxY+1+i, render.PadRight(line, boxW))
 	}
 
 	for i, opt := range overlay.Options() {
@@ -111,48 +112,6 @@ func DrawOverlay(screen render.Screen, overlay *OverlayModel) {
 			marker = ">"
 		}
 		text := fmt.Sprintf("%s %s", marker, opt.Label)
-		writeStr(screen, boxX+1, boxY+1+numHeader+1+i, padRight(text, boxW))
+		render.WriteText(screen, boxX+1, boxY+1+numHeader+1+i, render.PadRight(text, boxW))
 	}
-}
-
-func drawBoxSized(screen render.Screen, x, y, width, height int) {
-	setRune(screen, x, y, '┌')
-	for i := 1; i <= width; i++ {
-		setRune(screen, x+i, y, '─')
-	}
-	setRune(screen, x+width+1, y, '┐')
-
-	bottomY := y + height - 1
-	for row := y + 1; row < bottomY; row++ {
-		setRune(screen, x, row, '│')
-		setRune(screen, x+width+1, row, '│')
-	}
-
-	setRune(screen, x, bottomY, '└')
-	for i := 1; i <= width; i++ {
-		setRune(screen, x+i, bottomY, '─')
-	}
-	setRune(screen, x+width+1, bottomY, '┘')
-}
-
-func setRune(screen render.Screen, x, y int, r rune) {
-	screen.SetCell(x, y, render.Cell{Rune: r})
-}
-
-func writeStr(screen render.Screen, x, y int, text string) {
-	for i, r := range text {
-		screen.SetCell(x+i, y, render.Cell{Rune: r})
-	}
-}
-
-func padRight(s string, n int) string {
-	if len(s) >= n {
-		return s[:n]
-	}
-	padded := make([]byte, n)
-	for i := range padded {
-		padded[i] = ' '
-	}
-	copy(padded, s)
-	return string(padded)
 }

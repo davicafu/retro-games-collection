@@ -12,6 +12,7 @@ import (
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/input"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/render"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/snake"
+	"github.com/davidbarreiro/cli-games-collection/internal/games/sokoban"
 )
 
 // FrameMsg is sent each time the game produces a new rendered frame.
@@ -65,6 +66,7 @@ func New() Model {
 		cursor: 0,
 		games: []gameEntry{
 			{Name: "Snake", Description: "Navigate, eat, survive", starter: runSnakeGame},
+			{Name: "Sokoban", Description: "Push boxes to their targets", starter: runSokobanGame},
 		},
 		width:  80,
 		height: 24,
@@ -184,6 +186,8 @@ func (m Model) updatePlaying(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.chInput.Send(input.ActionSelect)
 	case "p", "P":
 		m.chInput.Send(input.ActionPause)
+	case "u", "U":
+		m.chInput.Send(input.ActionUndo)
 	}
 
 	return m, nil
@@ -254,9 +258,9 @@ func (m Model) View() string {
 
 func (m Model) menuView() string {
 	const width = 44
-	const inner = width - 2  // 42 — espacio visible entre ║║
-	const innerBox = 38      // 42 - 4 — espacio entre ││ del inner box
-	const textArea = 36      // innerBox - 2 — texto entre los espacios │ ▸ text │
+	const inner = width - 2 // 42 — espacio visible entre ║║
+	const innerBox = 38     // 42 - 4 — espacio entre ││ del inner box
+	const textArea = 36     // innerBox - 2 — texto entre los espacios │ ▸ text │
 
 	title := lipgloss.NewStyle().
 		Bold(true).
@@ -368,5 +372,10 @@ func runSnakeGame(ctx context.Context, provider input.Provider, screen render.Sc
 
 	selector := snake.NewRandomSelector(rand.New(rand.NewSource(time.Now().UnixNano())))
 	module := snake.NewModule(ticker, screen, provider, selector)
+	return module.Run(ctx)
+}
+
+func runSokobanGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
+	module := sokoban.NewModule(screen, provider)
 	return module.Run(ctx)
 }

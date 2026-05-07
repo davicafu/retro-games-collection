@@ -10,6 +10,7 @@ const (
 	ActionQuit   Action = "quit"
 	ActionSelect Action = "select"
 	ActionPause  Action = "pause"
+	ActionUndo   Action = "undo"
 )
 
 type FrameInput struct {
