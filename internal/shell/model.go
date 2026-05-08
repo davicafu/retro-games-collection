@@ -188,6 +188,8 @@ func (m Model) updatePlaying(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.chInput.Send(input.ActionPause)
 	case "u", "U":
 		m.chInput.Send(input.ActionUndo)
+	case "?", "h", "H":
+		m.chInput.Send(input.ActionHelp)
 	}
 
 	return m, nil
@@ -235,9 +237,19 @@ func (m Model) awaitGameEvent() tea.Cmd {
 			return nil
 		}
 		select {
+		case err := <-m.gameCtrl.doneCh:
+			return GameOverMsg{Err: err}
+		default:
+		}
+		select {
 		case frame, ok := <-m.gameCtrl.frameCh:
 			if !ok {
-				return nil
+				select {
+				case err := <-m.gameCtrl.doneCh:
+					return GameOverMsg{Err: err}
+				default:
+					return GameOverMsg{Err: nil}
+				}
 			}
 			return FrameMsg{Frame: frame}
 		case err := <-m.gameCtrl.doneCh:

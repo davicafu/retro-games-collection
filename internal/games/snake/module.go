@@ -8,15 +8,23 @@ import (
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/input"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/render"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/runtime"
+	"github.com/davidbarreiro/cli-games-collection/internal/engine/ui/overlay"
 )
 
 type runtimeGame struct {
 	*Game
-	overlay   *OverlayModel
+	overlay   *overlay.Model
 	forceQuit bool
 	paused    bool
 	selector  FoodSelector
 }
+
+const (
+	overlayOptionIDContinue   = "continue"
+	overlayOptionIDRestart    = "restart"
+	overlayOptionIDBackToMenu = "back_to_menu"
+	overlayOptionIDQuit       = "quit"
+)
 
 func (g *runtimeGame) Init(context.Context) error { return nil }
 
@@ -31,11 +39,11 @@ func (g *runtimeGame) updateOverlay(frame input.FrameInput) error {
 	for _, action := range frame.Actions {
 		switch action {
 		case input.ActionUp:
-			g.overlay.MoveUp()
+			g.overlay.Apply(overlay.IntentMoveUp)
 		case input.ActionDown:
-			g.overlay.MoveDown()
+			g.overlay.Apply(overlay.IntentMoveDown)
 		case input.ActionSelect:
-			return g.resolveOverlay()
+			return g.resolveOverlay(g.overlay.Apply(overlay.IntentConfirm))
 		case input.ActionPause:
 			if g.paused {
 				g.overlay = nil
@@ -48,18 +56,22 @@ func (g *runtimeGame) updateOverlay(frame input.FrameInput) error {
 				g.paused = false
 				return nil
 			}
-			return g.resolveOverlay()
+			return g.resolveOverlay(g.overlay.Apply(overlay.IntentConfirm))
 		}
 	}
 	return nil
 }
 
-func (g *runtimeGame) resolveOverlay() error {
-	switch g.overlay.Resolve() {
-	case OverlayActionContinue:
+func (g *runtimeGame) resolveOverlay(result overlay.Result) error {
+	if result.Kind != overlay.ResultKindConfirmed {
+		return nil
+	}
+
+	switch result.OptionID {
+	case overlayOptionIDContinue:
 		g.overlay = nil
 		g.paused = false
-	case OverlayActionRestart:
+	case overlayOptionIDRestart:
 		g.Game = NewGame(Config{
 			Width: 12, Height: 12, Start: Position{X: 1, Y: 1},
 			Food:     []Position{{X: 4, Y: 1}},
@@ -67,12 +79,12 @@ func (g *runtimeGame) resolveOverlay() error {
 		})
 		g.overlay = nil
 		g.paused = false
-	case OverlayActionBackToMenu:
+	case overlayOptionIDBackToMenu:
 		g.forceQuit = true
 		g.overlay = nil
 		g.paused = false
 		return ErrBackToMenu
-	case OverlayActionQuit:
+	case overlayOptionIDQuit:
 		g.forceQuit = true
 		g.overlay = nil
 		g.paused = false
@@ -112,23 +124,23 @@ func (g *runtimeGame) updatePlay(frame input.FrameInput) error {
 
 func (g *runtimeGame) activatePause() error {
 	g.paused = true
-	m := NewOverlayModel("PAUSED", []OverlayOption{
-		{Label: "Continue", Action: OverlayActionContinue},
-		{Label: "Restart", Action: OverlayActionRestart},
-		{Label: "Menu", Action: OverlayActionBackToMenu},
-		{Label: "Quit", Action: OverlayActionQuit},
+	m := overlay.NewAction("PAUSED", nil, []overlay.Option{
+		{ID: overlayOptionIDContinue, Label: "Continue", Enabled: true},
+		{ID: overlayOptionIDRestart, Label: "Restart", Enabled: true},
+		{ID: overlayOptionIDBackToMenu, Label: "Menu", Enabled: true},
 	})
 	g.overlay = &m
 	return nil
 }
 
 func (g *runtimeGame) activateGameOverOverlay() {
-	m := NewOverlayModel(
-		fmt.Sprintf("Game Over\nScore: %d", g.Score()),
-		[]OverlayOption{
-			{Label: "Restart", Action: OverlayActionRestart},
-			{Label: "Menu", Action: OverlayActionBackToMenu},
-			{Label: "Quit", Action: OverlayActionQuit},
+	m := overlay.NewAction(
+		"Game Over",
+		[]overlay.Section{overlay.Text(fmt.Sprintf("Score: %d", g.Score()))},
+		[]overlay.Option{
+			{ID: overlayOptionIDRestart, Label: "Restart", Enabled: true},
+			{ID: overlayOptionIDBackToMenu, Label: "Menu", Enabled: true},
+			{ID: overlayOptionIDQuit, Label: "Quit", Enabled: true},
 		},
 	)
 	g.overlay = &m

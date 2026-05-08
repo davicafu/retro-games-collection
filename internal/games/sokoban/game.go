@@ -83,14 +83,15 @@ func (g *Game) Move(action input.Action) bool {
 	return true
 }
 
-func (g *Game) Undo() {
+func (g *Game) Undo() bool {
 	g.initUndoStack()
 	entry := g.undoStack.Pop()
 	if entry == nil {
-		return
+		return false
 	}
 	g.Player = entry.player
 	g.Boxes = entry.boxes
+	return true
 }
 
 func (g *Game) Won() bool {

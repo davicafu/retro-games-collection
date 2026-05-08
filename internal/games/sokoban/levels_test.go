@@ -1,6 +1,7 @@
 package sokoban
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -94,5 +95,48 @@ func TestParseLevelMultiBoxTarget(t *testing.T) {
 	}
 	if len(game.Targets) != 3 {
 		t.Errorf("expected 3 targets, got %d", len(game.Targets))
+	}
+}
+
+func TestAllLevelsAreRectangularAndPerimeterClosed(t *testing.T) {
+	for i, level := range Levels {
+		lines := strings.Split(strings.TrimSpace(level), "\n")
+		if len(lines) == 0 {
+			t.Fatalf("level %d: expected at least one row", i+1)
+		}
+
+		width := len(lines[0])
+		for rowIndex, line := range lines {
+			if len(line) != width {
+				t.Fatalf("level %d row %d: expected width %d, got %d", i+1, rowIndex, width, len(line))
+			}
+		}
+
+		for x := 0; x < width; x++ {
+			if lines[0][x] != '#' {
+				t.Fatalf("level %d: top border must be closed at x=%d", i+1, x)
+			}
+			if lines[len(lines)-1][x] != '#' {
+				t.Fatalf("level %d: bottom border must be closed at x=%d", i+1, x)
+			}
+		}
+
+		for y, line := range lines {
+			if line[0] != '#' {
+				t.Fatalf("level %d: left border must be closed at y=%d", i+1, y)
+			}
+			if line[len(line)-1] != '#' {
+				t.Fatalf("level %d: right border must be closed at y=%d", i+1, y)
+			}
+		}
+	}
+}
+
+func TestLevel7HasNoBoxesPinnedUnderTopWall(t *testing.T) {
+	lines := strings.Split(strings.TrimSpace(Levels[6]), "\n")
+	for x := 1; x < len(lines[1])-1; x++ {
+		if lines[1][x] == '$' {
+			t.Fatalf("level 7: box at top interior row x=%d is pinned under the top wall", x)
+		}
 	}
 }

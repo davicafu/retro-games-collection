@@ -7,6 +7,7 @@ import (
 
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/clock"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/input"
+	"github.com/davidbarreiro/cli-games-collection/internal/engine/ui/overlay"
 	"github.com/davidbarreiro/cli-games-collection/internal/platform/terminal/tcellscreen"
 )
 
@@ -259,6 +260,9 @@ func TestRuntimeGame_PauseActivatesOverlay(t *testing.T) {
 	if g.overlay == nil {
 		t.Fatal("expected overlay active after pause")
 	}
+	if got := g.overlay.Kind(); got != overlay.KindAction {
+		t.Fatalf("expected pause overlay kind %q, got %q", overlay.KindAction, got)
+	}
 	if g.overlay.Title() != "PAUSED" {
 		t.Fatalf("expected overlay title PAUSED, got %q", g.overlay.Title())
 	}
@@ -275,8 +279,8 @@ func TestRuntimeGame_PauseOverlayHasContinueFirst(t *testing.T) {
 	if len(g.overlay.Options()) < 1 {
 		t.Fatal("expected at least one option in pause overlay")
 	}
-	if g.overlay.Options()[0].Action != OverlayActionContinue {
-		t.Fatalf("expected first option to be Continue, got %q", g.overlay.Options()[0].Action)
+	if g.overlay.Options()[0].ID != overlayOptionIDContinue {
+		t.Fatalf("expected first option to be Continue, got %q", g.overlay.Options()[0].ID)
 	}
 }
 
@@ -341,7 +345,7 @@ func TestRuntimeGame_GameOverOverlayNoContinue(t *testing.T) {
 	g.Update(context.Background(), input.FrameInput{Actions: []input.Action{input.ActionUp}})
 
 	for _, opt := range g.overlay.Options() {
-		if opt.Action == OverlayActionContinue {
+		if opt.ID == overlayOptionIDContinue {
 			t.Fatal("game-over overlay should NOT have Continue option")
 		}
 	}

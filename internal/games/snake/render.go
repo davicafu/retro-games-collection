@@ -1,10 +1,8 @@
 package snake
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/render"
+	"github.com/davidbarreiro/cli-games-collection/internal/engine/ui/overlay"
 )
 
 type playfieldLayout struct {
@@ -84,34 +82,13 @@ func drawBorder(screen render.Screen, layout playfieldLayout) {
 	}
 }
 
-func DrawOverlay(screen render.Screen, overlay *OverlayModel) {
+func DrawOverlay(screen render.Screen, model *overlay.Model) {
 	layout := defaultPlayfieldLayout(12, 12)
 	if !shouldUseProjectedLayout(screen, layout) {
 		return
 	}
-
-	boxX, boxY := 2, 4
-	boxW := 10
-
-	titleLines := strings.SplitN(overlay.Title(), "\n", 2)
-	numHeader := len(titleLines)
-	numOptions := len(overlay.Options())
-	contentHeight := numHeader + 1 + numOptions // header + separator + options
-
-	// Fill interior so nothing shows through from behind
-	render.FillRect(screen, boxX+1, boxY+1, boxW, contentHeight, ' ')
-	render.DrawBox(screen, boxX, boxY, boxW, contentHeight)
-
-	for i, line := range titleLines {
-		render.WriteText(screen, boxX+1, boxY+1+i, render.PadRight(line, boxW))
+	if model == nil {
+		return
 	}
-
-	for i, opt := range overlay.Options() {
-		marker := " "
-		if i == overlay.SelectedIndex() {
-			marker = ">"
-		}
-		text := fmt.Sprintf("%s %s", marker, opt.Label)
-		render.WriteText(screen, boxX+1, boxY+1+numHeader+1+i, render.PadRight(text, boxW))
-	}
+	overlay.Draw(screen, *model)
 }

@@ -248,6 +248,29 @@ func TestUpdate_GameOverMsgReturnsToMenu(t *testing.T) {
 	}
 }
 
+func TestAwaitGameEventReturnsGameOverWhenDoneReadyAndFrameClosed(t *testing.T) {
+	frameCh := make(chan string)
+	close(frameCh)
+	doneCh := make(chan error, 1)
+	doneCh <- nil
+
+	m := New()
+	m.state = statePlaying
+	m.gameCtrl = &gameController{
+		cancel:  func() {},
+		frameCh: frameCh,
+		doneCh:  doneCh,
+	}
+
+	msg := m.awaitGameEvent()()
+	if msg == nil {
+		t.Fatal("expected GameOverMsg when done channel is ready and frame channel is closed")
+	}
+	if _, ok := msg.(GameOverMsg); !ok {
+		t.Fatalf("expected GameOverMsg, got %T", msg)
+	}
+}
+
 // ─── Playing key routing ────────────────────────────────────────────────────
 
 func TestUpdate_PlayingArrowKeys(t *testing.T) {

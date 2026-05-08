@@ -7,93 +7,94 @@ import (
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/grid"
 )
 
-// Level definitions — progressively harder classic puzzles.
+// Level definitions — progressively harder puzzles.
 // Each level MUST have balanced boxes ($) and targets (.) counts.
 var Levels = []string{
-	// Level 1: Simple push (1 box, 1 target)
+	// Level 1: Tight space, 1 box (intro)
 	`#####
 #@  #
 # $ #
-#  .#
+# . #
 #####`,
 
-	// Level 2: Two boxes, L-shaped (2 boxes, 2 targets)
+	// Level 2: Two boxes, corner trick
 	`######
 #    #
-# $. #
-# @$ #
-# .  #
+# $@ #
+#  . #
+# $ .#
 ######`,
 
-	// Level 3: Push around corner (2 boxes, 2 targets)
-	`  ####
-###  #
-#.$  #
-### $.#
-#  @ #
-#######`,
-
-	// Level 4: Two boxes, linear (2 boxes, 2 targets)
-	`######
-# @  #
-# $  #
-# .  #
-#  $.#
-######`,
-
-	// Level 5: Three boxes, cross (3 boxes, 3 targets)
+	// Level 3: Three boxes, need planning
 	`#######
 #  @  #
-# $.$. #
+# $.$.#
 #  $  #
 #  .  #
 #######`,
 
-	// Level 6: Compact, requires planning (2 boxes, 2 targets)
-	` ####
-##  #
-# $.#
-# $.#
-# @ #
-####`,
-
-	// Level 7: Diagonal pattern (2 boxes, 2 targets)
-	`######
-# .  #
-# $  #
-# @$ #
-#  . #
-######`,
-
-	// Level 8: Three boxes, staggered (3 boxes, 3 targets)
+	// Level 4: Three boxes, narrow corridor
 	`########
-#  @   #
+#      #
+# .$@$ #
+#      #
+# . $ .#
+########`,
+
+	// Level 5: Four boxes, strategy required
+	`##########
+#   @    #
+#  $ $ $ #
+# . $ .  #
+# .   .  #
+##########`,
+
+	// Level 6: Three boxes, dead-end traps
+	`########
+#   @  #
 # $    #
-#  $.  #
-#   $  #
+# . $ .#
+#    $ #
 #   .  #
-#    . #
 ########`,
 
-	// Level 9: Three boxes, corridor (3 boxes, 3 targets)
-	`########
-#      #
-# .$   #
-#  .$  #
-#   .$ #
-#  @   #
-#      #
-########`,
+	// Level 7: Five boxes, multiple paths to deadlock
+	`##########
+# @      #
+# $ $ $  #
+# . $ .  #
+#  $     #
+# . . .  #
+##########`,
 
-	// Level 10: Four boxes, symmetric (4 boxes, 4 targets)
-	`#########
-#  @    #
-#  $    #
-# . $ . #
-#  $ $  #
-# .  .  #
-#       #
-#########`,
+	// Level 8: Five boxes, tight squeeze
+	`##########
+#   @    #
+#  $ $   #
+# . $ .  #
+#  $ $   #
+# . . .  #
+##########`,
+
+	// Level 9: Five boxes, the gauntlet
+	`###########
+#  @      #
+#  $      #
+#  . $ .  #
+#   $$    #
+# . $.    #
+#    .    #
+###########`,
+
+	// Level 10: Five boxes, final challenge
+	`############
+#   @      #
+#   $      #
+#  . $ .   #
+#   $ $    #
+#  . $ .   #
+#   .      #
+############`,
 }
 
 func ParseLevel(lines []string) (*Game, error) {
