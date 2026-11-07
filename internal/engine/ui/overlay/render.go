@@ -60,7 +60,7 @@ func Draw(screen render.Screen, model Model) {
 	titleWidth := titleLayoutWidth(model.Title())
 	titleX := boxX + 1
 	if titleWidth < interiorWidth {
-		titleX = boxX + 1 + (interiorWidth-titleWidth+1)/2
+		titleX = boxX + 1 + (interiorWidth-titleWidth)/2
 	}
 	writeTitleBounded(screen, titleX, boxY+1, model.Title(), (boxX+1)+interiorWidth)
 

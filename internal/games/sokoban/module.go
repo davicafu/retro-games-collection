@@ -529,7 +529,7 @@ func (m Module) buildFinalSummaryOverlay(summary runSummary) gameoverlay.Model {
 	}
 
 	return gameoverlay.NewAction(
-		"¡¡FIN DEL JUEGO!!",
+		"🎉 FIN DEL JUEGO!🎉",
 		[]gameoverlay.Section{gameoverlay.Text(lines...)},
 		[]gameoverlay.Option{{ID: summaryOptionIDBackToMenu, Label: "Volver al menú", Enabled: true}},
 	)

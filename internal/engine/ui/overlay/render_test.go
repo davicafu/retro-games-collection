@@ -110,7 +110,7 @@ func TestDrawCentersEmojiWrappedTitleWithoutExtraGap(t *testing.T) {
 	}
 	leftBorder := strings.Index(rows[titleRow], "│")
 	rightBorder := strings.LastIndex(rows[titleRow], "│")
-	content := rows[titleRow][leftBorder+1 : rightBorder]
+	content := rows[titleRow][leftBorder+len("│") : rightBorder]
 	titleStart := strings.Index(content, model.Title())
 	if titleStart < 0 {
 		t.Fatalf("expected title content inside row %q", rows[titleRow])
