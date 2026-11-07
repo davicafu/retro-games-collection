@@ -154,17 +154,17 @@ func TestSpeedScalesWithDistanceAndCaps(t *testing.T) {
 		t.Fatalf("initial speed = %d, want %d", g.Speed(), BaseSpeed)
 	}
 
-	for g.Score() < 19 {
+	for g.Score() < 39 {
 		g.Step(ActionNone)
 	}
 	if g.Speed() != BaseSpeed {
-		t.Fatalf("speed at distance 19 = %d, want %d", g.Speed(), BaseSpeed)
+		t.Fatalf("speed at distance 39 = %d, want %d", g.Speed(), BaseSpeed)
 	}
-	for g.Score() < 20 {
+	for g.Score() < 40 {
 		g.Step(ActionNone)
 	}
 	if g.Speed() != BaseSpeed+SpeedStep {
-		t.Fatalf("speed at distance 20 = %d, want %d (speed rises every 20 cells)", g.Speed(), BaseSpeed+SpeedStep)
+		t.Fatalf("speed at distance 40 = %d, want %d (speed rises every 40 cells)", g.Speed(), BaseSpeed+SpeedStep)
 	}
 
 	for g.Score() < 2000 {

@@ -24,13 +24,13 @@ func cellAt(rows [][]rune, x, h int) rune {
 
 func TestDrawShowsScoreAndSpeedMultiplier(t *testing.T) {
 	g := newTestGame()
-	for g.Score() < 20 {
+	for g.Score() < 40 {
 		g.Step(ActionNone)
 	}
 
 	hud := string(drawRows(g)[testLayout.originY])
 
-	if !strings.Contains(hud, "Score: 20") {
+	if !strings.Contains(hud, "Score: 40") {
 		t.Fatalf("HUD %q missing score", hud)
 	}
 	if !strings.Contains(hud, "Speed x1.1") { // 40 / 35 = 1.14

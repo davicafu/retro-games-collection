@@ -46,7 +46,7 @@ const (
 	// tunnels through the player.
 	BaseSpeed     = 35
 	SpeedStep     = 5
-	SpeedDistance = 20
+	SpeedDistance = 40
 	MaxSpeed      = 90
 
 	scrollUnit = scroll.Unit
