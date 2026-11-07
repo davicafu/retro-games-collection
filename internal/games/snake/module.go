@@ -8,166 +8,45 @@ import (
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/input"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/render"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/runtime"
+	"github.com/davidbarreiro/cli-games-collection/internal/engine/session"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/ui/overlay"
 )
 
-type runtimeGame struct {
+// round adapts Game to session.Round: arrow keys steer, every tick moves.
+type round struct {
 	*Game
-	overlay   *overlay.Model
-	forceQuit bool
-	paused    bool
-	selector  FoodSelector
 }
 
-const (
-	overlayOptionIDContinue   = "continue"
-	overlayOptionIDRestart    = "restart"
-	overlayOptionIDBackToMenu = "back_to_menu"
-	overlayOptionIDQuit       = "quit"
-)
-
-func (g *runtimeGame) Init(context.Context) error { return nil }
-
-func (g *runtimeGame) Update(_ context.Context, frame input.FrameInput) error {
-	if g.overlay != nil {
-		return g.updateOverlay(frame)
-	}
-	return g.updatePlay(frame)
-}
-
-func (g *runtimeGame) updateOverlay(frame input.FrameInput) error {
+func (r round) Update(_ context.Context, frame input.FrameInput) error {
 	for _, action := range frame.Actions {
 		switch action {
 		case input.ActionUp:
-			g.overlay.Apply(overlay.IntentMoveUp)
+			r.direction = DirectionUp
 		case input.ActionDown:
-			g.overlay.Apply(overlay.IntentMoveDown)
-		case input.ActionSelect:
-			return g.resolveOverlay(g.overlay.Apply(overlay.IntentConfirm))
-		case input.ActionPause:
-			if g.paused {
-				g.overlay = nil
-				g.paused = false
-				return nil
-			}
-		case input.ActionQuit:
-			if g.paused {
-				g.overlay = nil
-				g.paused = false
-				return nil
-			}
-			return g.resolveOverlay(g.overlay.Apply(overlay.IntentConfirm))
-		}
-	}
-	return nil
-}
-
-func (g *runtimeGame) resolveOverlay(result overlay.Result) error {
-	if result.Kind != overlay.ResultKindConfirmed {
-		return nil
-	}
-
-	switch result.OptionID {
-	case overlayOptionIDContinue:
-		g.overlay = nil
-		g.paused = false
-	case overlayOptionIDRestart:
-		g.Game = NewGame(Config{
-			Width: 12, Height: 12, Start: Position{X: 1, Y: 1},
-			Food:     []Position{{X: 4, Y: 1}},
-			Selector: g.selector,
-		})
-		g.overlay = nil
-		g.paused = false
-	case overlayOptionIDBackToMenu:
-		g.forceQuit = true
-		g.overlay = nil
-		g.paused = false
-		return ErrBackToMenu
-	case overlayOptionIDQuit:
-		g.forceQuit = true
-		g.overlay = nil
-		g.paused = false
-	}
-	return nil
-}
-
-func (g *runtimeGame) updatePlay(frame input.FrameInput) error {
-	for _, action := range frame.Actions {
-		switch action {
-		case input.ActionUp:
-			g.direction = DirectionUp
-		case input.ActionDown:
-			g.direction = DirectionDown
+			r.direction = DirectionDown
 		case input.ActionLeft:
-			g.direction = DirectionLeft
+			r.direction = DirectionLeft
 		case input.ActionRight:
-			g.direction = DirectionRight
-		case input.ActionQuit:
-			g.forceQuit = true
-			return nil
-		case input.ActionPause:
-			return g.activatePause()
+			r.direction = DirectionRight
 		}
 	}
-
-	if err := g.Game.Update(g.direction); err != nil {
-		return err
-	}
-
-	if g.Dead() {
-		g.activateGameOverOverlay()
-	}
-
-	return nil
+	return r.Game.Update(r.direction)
 }
 
-func (g *runtimeGame) activatePause() error {
-	g.paused = true
-	m := overlay.NewAction("PAUSED", nil, []overlay.Option{
-		{ID: overlayOptionIDContinue, Label: "Continue", Enabled: true},
-		{ID: overlayOptionIDRestart, Label: "Restart", Enabled: true},
-		{ID: overlayOptionIDBackToMenu, Label: "Menu", Enabled: true},
-	})
-	g.overlay = &m
-	return nil
-}
-
-func (g *runtimeGame) activateGameOverOverlay() {
-	m := overlay.NewAction(
-		"Game Over",
-		[]overlay.Section{overlay.Text(fmt.Sprintf("Score: %d", g.Score()))},
-		[]overlay.Option{
-			{ID: overlayOptionIDRestart, Label: "Restart", Enabled: true},
-			{ID: overlayOptionIDBackToMenu, Label: "Menu", Enabled: true},
-			{ID: overlayOptionIDQuit, Label: "Quit", Enabled: true},
-		},
-	)
-	g.overlay = &m
-}
-
-func (g *runtimeGame) Render(_ context.Context, screen runtime.Screen) error {
+func (r round) Render(_ context.Context, screen render.Screen) error {
 	layout := defaultPlayfieldLayout(12, 12)
 	if shouldUseProjectedLayout(screen, layout) {
-		scoreStr := fmt.Sprintf("Score: %d", g.Score())
+		scoreStr := fmt.Sprintf("Score: %d", r.Score())
 		render.WriteText(screen, 1, 0, render.PadRight(scoreStr, layout.totalWidth()-1))
 	}
-
-	Draw(screen, g.Body(), g.Food())
-	if g.overlay != nil {
-		DrawOverlay(screen, g.overlay)
-	}
+	Draw(screen, r.Body(), r.Food())
 	return nil
 }
 
-func (g *runtimeGame) ShouldQuit() bool {
-	if g.forceQuit {
-		return true
-	}
-	if g.overlay != nil {
-		return false
-	}
-	return g.Dead()
+func (r round) Over() bool { return r.Dead() }
+
+func (r round) Summary() []overlay.Section {
+	return []overlay.Section{overlay.Text(fmt.Sprintf("Score: %d", r.Score()))}
 }
 
 type Module struct {
@@ -177,17 +56,17 @@ type Module struct {
 	selector FoodSelector
 }
 
-var ErrBackToMenu = fmt.Errorf("back to menu")
-
 func NewModule(clk clock.Clock, screen render.Screen, provider input.Provider, selector FoodSelector) Module {
 	return Module{clock: clk, screen: screen, provider: provider, selector: selector}
 }
 
 func (m Module) Run(ctx context.Context) error {
 	rt := runtime.New(runtime.Config{Clock: m.clock, Input: m.provider, Screen: m.screen})
-	game := &runtimeGame{
-		Game:     NewGame(Config{Width: 12, Height: 12, Start: Position{X: 1, Y: 1}, Food: []Position{{X: 4, Y: 1}}, Selector: m.selector}),
-		selector: m.selector,
-	}
-	return rt.Run(ctx, game)
+	return rt.Run(ctx, session.New(func() session.Round {
+		return round{NewGame(Config{
+			Width: 12, Height: 12, Start: Position{X: 1, Y: 1},
+			Food:     []Position{{X: 4, Y: 1}},
+			Selector: m.selector,
+		})}
+	}))
 }

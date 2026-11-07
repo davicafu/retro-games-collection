@@ -221,7 +221,7 @@ func (m Model) startGame(entry gameEntry) Model {
 		}
 
 		err := entry.starter(ctx, provider, broadcaster, m.width, m.height)
-		if err != nil && err != snake.ErrBackToMenu {
+		if err != nil {
 			doneCh <- err
 			return
 		}

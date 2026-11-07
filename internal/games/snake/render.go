@@ -2,7 +2,6 @@ package snake
 
 import (
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/render"
-	"github.com/davidbarreiro/cli-games-collection/internal/engine/ui/overlay"
 )
 
 type playfieldLayout struct {
@@ -80,15 +79,4 @@ func drawBorder(screen render.Screen, layout playfieldLayout) {
 		screen.SetCell(0, y, render.Cell{Rune: '|'})
 		screen.SetCell(width-1, y, render.Cell{Rune: '|'})
 	}
-}
-
-func DrawOverlay(screen render.Screen, model *overlay.Model) {
-	layout := defaultPlayfieldLayout(12, 12)
-	if !shouldUseProjectedLayout(screen, layout) {
-		return
-	}
-	if model == nil {
-		return
-	}
-	overlay.Draw(screen, *model)
 }
