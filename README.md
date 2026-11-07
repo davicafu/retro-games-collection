@@ -135,23 +135,19 @@ go mod tidy
 ## Run the launcher
 
 ```bash
-go run ./cmd/retro-collection-games
+go run .
 ```
 
 ---
 
 ## Run a specific game
 
-Example:
-
 ```bash
-go run ./cmd/retro-collection-games snake
+go run . play snake
+go run . play sokoban
+go run . play runner
 ```
 
-Future examples:
-
-```bash
-go run ./cmd/retro-collection-games tetris
-```
+Game names are case-insensitive. An unknown name opens the launcher menu.
 
 ---

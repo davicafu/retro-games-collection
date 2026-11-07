@@ -538,3 +538,31 @@ func TestPlayingView_ShowsFrameAndOverlay(t *testing.T) {
 		t.Fatalf("expected view to contain ESC hint, got %q", view)
 	}
 }
+
+func TestPlayingView_ShowsControlsOfTheRunningGame(t *testing.T) {
+	cases := map[string][]string{
+		"Snake":   {"[ESC] pause", "[q] quit", "[arrows/WASD] move"},
+		"Sokoban": {"[ESC] pause", "[q] quit", "[arrows/WASD] move"},
+		"Runner":  {"[ESC] pause", "[q] quit", "[↑/W/space] jump", "[↓/S] duck"},
+	}
+	for name, want := range cases {
+		m := New()
+		for i, g := range m.games {
+			if g.Name == name {
+				m.cursor = i
+			}
+		}
+		m.state = statePlaying
+		m.frame = "game-content"
+
+		view := m.View()
+		for _, hint := range want {
+			if !strings.Contains(view, hint) {
+				t.Fatalf("%s: view missing %q, got %q", name, hint, view)
+			}
+		}
+		if name == "Runner" && strings.Contains(view, "move") {
+			t.Fatalf("Runner hint must not say move, got %q", view)
+		}
+	}
+}

@@ -33,6 +33,7 @@ const (
 type gameEntry struct {
 	Name        string
 	Description string
+	Controls    string // game-specific keys shown under the frame while playing
 	starter     func(ctx context.Context, input input.Provider, screen render.Screen, width, height int) error
 }
 
@@ -66,9 +67,9 @@ func New() Model {
 		state:  stateMenu,
 		cursor: 0,
 		games: []gameEntry{
-			{Name: "Snake", Description: "Navigate, eat, survive", starter: runSnakeGame},
-			{Name: "Sokoban", Description: "Push boxes to their targets", starter: runSokobanGame},
-			{Name: "Runner", Description: "Jump, duck, keep running", starter: runRunnerGame},
+			{Name: "Snake", Description: "Navigate, eat, survive", Controls: "[arrows/WASD] move", starter: runSnakeGame},
+			{Name: "Sokoban", Description: "Push boxes to their targets", Controls: "[arrows/WASD] move", starter: runSokobanGame},
+			{Name: "Runner", Description: "Jump, duck, keep running", Controls: "[↑/W/space] jump  [↓/S] duck", starter: runRunnerGame},
 		},
 		width:  80,
 		height: 24,
@@ -346,7 +347,7 @@ func (m Model) playingView() string {
 
 	overlay := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
-		Render("  [ESC] pause  [q] quit  [arrows/WASD] move")
+		Render("  [ESC] pause  [q] quit  " + m.games[m.cursor].Controls)
 
 	return m.frame + "\n" + overlay
 }
