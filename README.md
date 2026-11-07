@@ -146,6 +146,7 @@ go run .
 go run . play snake
 go run . play sokoban
 go run . play runner
+go run . play drone
 ```
 
 Game names are case-insensitive. An unknown name opens the launcher menu.
