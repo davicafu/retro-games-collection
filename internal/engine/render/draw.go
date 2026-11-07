@@ -1,5 +1,7 @@
 package render
 
+import "strings"
+
 // DrawBox draws a bordered box at (x, y) with the given width and height.
 // width and height are the INTERIOR dimensions (excluding borders).
 func DrawBox(screen Screen, x, y, width, height int) {
@@ -22,25 +24,21 @@ func DrawBox(screen Screen, x, y, width, height int) {
 	}
 }
 
-// WriteText writes a string starting at position (x, y) on the screen.
+// WriteText writes a string starting at position (x, y), one rune per cell.
 func WriteText(screen Screen, x, y int, text string) {
-	for i, r := range text {
+	for i, r := range []rune(text) {
 		SetCell(screen, x+i, y, r)
 	}
 }
 
-// PadRight pads a string with spaces to reach exactly n visible characters.
+// PadRight pads a string with spaces to exactly n runes (one rune per cell).
 // Truncates if the string is longer than n.
 func PadRight(s string, n int) string {
-	if len(s) >= n {
-		return s[:n]
+	runes := []rune(s)
+	if len(runes) >= n {
+		return string(runes[:n])
 	}
-	padded := make([]byte, n)
-	for i := range padded {
-		padded[i] = ' '
-	}
-	copy(padded, s)
-	return string(padded)
+	return s + strings.Repeat(" ", n-len(runes))
 }
 
 // FillRect fills a rectangular area with the given rune.
