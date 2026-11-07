@@ -93,14 +93,17 @@ func TestNew_CreatesMenuStateWithDefaults(t *testing.T) {
 	if m.state != stateMenu {
 		t.Fatalf("expected stateMenu, got %v", m.state)
 	}
-	if len(m.games) != 2 {
-		t.Fatalf("expected 2 games, got %d", len(m.games))
+	if len(m.games) != 3 {
+		t.Fatalf("expected 3 games, got %d", len(m.games))
 	}
 	if m.games[0].Name != "Snake" {
 		t.Fatalf("expected game name 'Snake', got %q", m.games[0].Name)
 	}
 	if m.games[1].Name != "Sokoban" {
 		t.Fatalf("expected game name 'Sokoban', got %q", m.games[1].Name)
+	}
+	if m.games[2].Name != "Runner" {
+		t.Fatalf("expected game name 'Runner', got %q", m.games[2].Name)
 	}
 	if m.cursor != 0 {
 		t.Fatalf("expected cursor 0, got %d", m.cursor)
@@ -120,6 +123,24 @@ func TestNewWithGame_KnownGameSetsPlayingState(t *testing.T) {
 	}
 	if m.chInput == nil {
 		t.Fatal("expected chInput to be set")
+	}
+}
+
+func TestNewWithGame_RunnerSetsPlayingState(t *testing.T) {
+	m := NewWithGame("runner")
+	if m.state != statePlaying {
+		t.Fatalf("expected statePlaying, got %v", m.state)
+	}
+	if m.games[m.cursor].Name != "Runner" {
+		t.Fatalf("expected cursor on Runner, got %q", m.games[m.cursor].Name)
+	}
+	m.gameCtrl.cancel()
+}
+
+func TestMenuViewFitsDefaultTerminalWithAllGames(t *testing.T) {
+	m := New()
+	if lines := strings.Count(m.menuView(), "\n") + 1; lines > m.height {
+		t.Fatalf("menu has %d lines, terminal is %d", lines, m.height)
 	}
 }
 

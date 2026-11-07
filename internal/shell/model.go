@@ -11,6 +11,7 @@ import (
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/clock"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/input"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/render"
+	"github.com/davidbarreiro/cli-games-collection/internal/games/runner"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/snake"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/sokoban"
 )
@@ -67,6 +68,7 @@ func New() Model {
 		games: []gameEntry{
 			{Name: "Snake", Description: "Navigate, eat, survive", starter: runSnakeGame},
 			{Name: "Sokoban", Description: "Push boxes to their targets", starter: runSokobanGame},
+			{Name: "Runner", Description: "Jump, duck, keep running", starter: runRunnerGame},
 		},
 		width:  80,
 		height: 24,
@@ -389,5 +391,14 @@ func runSnakeGame(ctx context.Context, provider input.Provider, screen render.Sc
 
 func runSokobanGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
 	module := sokoban.NewModule(screen, provider)
+	return module.Run(ctx)
+}
+
+func runRunnerGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
+	ticker := clock.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	module := runner.NewModule(ticker, screen, provider, rng)
 	return module.Run(ctx)
 }
