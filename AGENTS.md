@@ -108,6 +108,11 @@ Avoid:
 2. Snake
    - first fully playable validating game
 
+## Feature Docs
+
+- All specs, designs, plans, and evidence live in `docs/features/<YYYY-MM-DD>-<feature>/`; see `docs/features/README.md`
+- This overrides any workflow default location (`odd/tasks/`, `openspec/`, `docs/superpowers/`)
+
 ## Working Style
 
 - Go slowly if needed, but make decisions intentionally
