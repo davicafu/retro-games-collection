@@ -1,5 +1,7 @@
 package runner
 
+import "github.com/davidbarreiro/cli-games-collection/internal/engine/scroll"
+
 // Action is the player's intent for one tick.
 type Action int
 
@@ -39,15 +41,18 @@ const (
 	// DuckTicks is how long one duck press lasts; terminals report no key release.
 	DuckTicks = 12
 
-	// Speed is measured in cells per 100 ticks. MaxSpeed must stay below 100 so the
-	// world scrolls at most one cell per tick and nothing tunnels through the player.
+	// Speed is measured in cells per scroll.Unit ticks. MaxSpeed must stay below
+	// scroll.Unit so the world scrolls at most one cell per tick and nothing
+	// tunnels through the player.
 	BaseSpeed     = 35
 	SpeedStep     = 5
 	SpeedDistance = 20
 	MaxSpeed      = 90
 
-	scrollUnit = 100
+	scrollUnit = scroll.Unit
 )
+
+var speedRamp = scroll.Ramp{Base: BaseSpeed, Step: SpeedStep, Every: SpeedDistance, Max: MaxSpeed}
 
 // jumpHeights is the scripted jump arc, one entry per tick, in cells above the ground.
 var jumpHeights = []int{1, 2, 3, 4, 4, 4, 3, 2, 1}
@@ -71,9 +76,9 @@ type Game struct {
 	jumpIndex int // index into jumpHeights; -1 when grounded
 	duckLeft  int
 
-	accumulator int
-	distance    int
-	dead        bool
+	scroller scroll.Scroller
+	distance int
+	dead     bool
 }
 
 func NewGame(cfg Config) *Game {
@@ -120,9 +125,7 @@ func (g *Game) advancePlayer(action Action) {
 }
 
 func (g *Game) scroll() {
-	g.accumulator += g.Speed()
-	for g.accumulator >= scrollUnit {
-		g.accumulator -= scrollUnit
+	for range g.scroller.Advance(g.Speed()) {
 		g.distance++
 		kept := g.obstacles[:0]
 		for _, o := range g.obstacles {
@@ -182,11 +185,7 @@ func (g *Game) Score() int { return g.distance }
 
 // Speed is the current scroll speed in cells per 100 ticks.
 func (g *Game) Speed() int {
-	speed := BaseSpeed + SpeedStep*(g.distance/SpeedDistance)
-	if speed > MaxSpeed {
-		return MaxSpeed
-	}
-	return speed
+	return speedRamp.At(g.distance)
 }
 
 func (g *Game) Obstacles() []Obstacle {
