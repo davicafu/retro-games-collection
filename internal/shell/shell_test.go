@@ -93,8 +93,8 @@ func TestNew_CreatesMenuStateWithDefaults(t *testing.T) {
 	if m.state != stateMenu {
 		t.Fatalf("expected stateMenu, got %v", m.state)
 	}
-	if len(m.games) != 5 {
-		t.Fatalf("expected 5 games, got %d", len(m.games))
+	if len(m.games) != 6 {
+		t.Fatalf("expected 6 games, got %d", len(m.games))
 	}
 	if m.games[0].Name != "Snake" {
 		t.Fatalf("expected game name 'Snake', got %q", m.games[0].Name)
@@ -110,6 +110,9 @@ func TestNew_CreatesMenuStateWithDefaults(t *testing.T) {
 	}
 	if m.games[4].Name != "Breach" {
 		t.Fatalf("expected game name 'Breach', got %q", m.games[4].Name)
+	}
+	if m.games[5].Name != "Botnet" {
+		t.Fatalf("expected game name 'Botnet', got %q", m.games[5].Name)
 	}
 	if m.cursor != 0 {
 		t.Fatalf("expected cursor 0, got %d", m.cursor)
@@ -165,10 +168,47 @@ func TestNewWithGame_BreachSetsPlayingState(t *testing.T) {
 	m.gameCtrl.cancel()
 }
 
+func TestNewWithGame_BotnetSetsPlayingState(t *testing.T) {
+	m := NewWithGame("botnet")
+	if m.state != statePlaying {
+		t.Fatalf("expected statePlaying, got %v", m.state)
+	}
+	if m.games[m.cursor].Name != "Botnet" {
+		t.Fatalf("expected cursor on Botnet, got %q", m.games[m.cursor].Name)
+	}
+	m.gameCtrl.cancel()
+}
+
 func TestMenuViewFitsDefaultTerminalWithAllGames(t *testing.T) {
 	m := New()
 	if lines := strings.Count(m.menuView(), "\n") + 1; lines > m.height {
 		t.Fatalf("menu has %d lines, terminal is %d", lines, m.height)
+	}
+}
+
+func TestMenuViewFitsTheWholeRoadmap(t *testing.T) {
+	m := New()
+	for len(m.games) < 12 {
+		m.games = append(m.games, gameEntry{Name: "Next", Description: "Planned"})
+	}
+	if lines := strings.Count(m.menuView(), "\n") + 1; lines > m.height {
+		t.Fatalf("menu with 12 games has %d lines, terminal is %d", lines, m.height)
+	}
+}
+
+func TestMenuViewDescribesOnlyTheSelectedGame(t *testing.T) {
+	m := New()
+	for i, selected := range m.games {
+		m.cursor = i
+		view := m.menuView()
+		for _, g := range m.games {
+			if got := strings.Contains(view, g.Description); got != (g.Name == selected.Name) {
+				t.Fatalf("cursor on %s: description of %s shown = %v", selected.Name, g.Name, got)
+			}
+			if !strings.Contains(view, g.Name) {
+				t.Fatalf("cursor on %s: %s missing from the list", selected.Name, g.Name)
+			}
+		}
 	}
 }
 
@@ -574,6 +614,7 @@ func TestPlayingView_ShowsControlsOfTheRunningGame(t *testing.T) {
 		"Runner":  {"[ESC] pause", "[q] quit", "[↑/W/space] jump", "[↓/S] duck"},
 		"Drone":   {"[ESC] pause", "[q] quit", "[↑/W/space] thrust"},
 		"Breach":  {"[ESC] pause", "[q] quit", "[←→/AD] move", "[↑/W/space] launch"},
+		"Botnet":  {"[ESC] pause", "[q] quit", "[←→/AD] move", "[↑/W/space] fire"},
 	}
 	for name, want := range cases {
 		m := New()

@@ -11,6 +11,7 @@ import (
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/clock"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/input"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/render"
+	"github.com/davidbarreiro/cli-games-collection/internal/games/botnet"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/breach"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/drone"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/runner"
@@ -74,6 +75,7 @@ func New() Model {
 			{Name: "Runner", Description: "Jump, duck, keep running", Controls: "[↑/W/space] jump  [↓/S] duck", starter: runRunnerGame},
 			{Name: "Drone", Description: "Fly between the antennas", Controls: "[↑/W/space] thrust", starter: runDroneGame},
 			{Name: "Breach", Description: "Infect your way through the firewall", Controls: "[←→/AD] move  [↑/W/space] launch", starter: runBreachGame},
+			{Name: "Botnet", Description: "Fire back at the antivirus waves", Controls: "[←→/AD] move  [↑/W/space] fire", starter: runBotnetGame},
 		},
 		width:  80,
 		height: 24,
@@ -323,18 +325,15 @@ func (m Model) menuView() string {
 		// "  │ ▸ Snake                          │" (cols 0-1 margen, 2│, 3 , 4-39 texto, 40 , 41│)
 		nameText := lipgloss.NewStyle().Width(textArea).Render(cur + nameStyle.Render(g.Name))
 		boxLine("  │ " + nameText + " │")
-
-		// "  │      Navigate, eat, survive       │"
-		descStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
-		descText := lipgloss.NewStyle().Width(textArea).Render("    " + descStyle.Render(g.Description))
-		boxLine("  │ " + descText + " │")
-
-		if i < len(m.games)-1 {
-			boxLine("  │" + strings.Repeat(" ", innerBox) + "│")
-		}
 	}
 
 	boxLine("  └" + strings.Repeat("─", innerBox) + "┘")
+
+	// Only the selected game is described, below the list, so the menu fits
+	// a 24-row terminal with every game of the roadmap.
+	descStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
+	desc := lipgloss.NewStyle().Width(inner).Render("    " + descStyle.Render(m.games[m.cursor].Description))
+	boxLine(desc)
 
 	// ─── Footer ─────────────────────────────────────────────────
 	boxLine(strings.Repeat(" ", inner))
@@ -423,5 +422,14 @@ func runBreachGame(ctx context.Context, provider input.Provider, screen render.S
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	module := breach.NewModule(ticker, screen, provider, rng)
+	return module.Run(ctx)
+}
+
+func runBotnetGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
+	ticker := clock.NewTicker(botnet.TickPeriod)
+	defer ticker.Stop()
+
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	module := botnet.NewModule(ticker, screen, provider, rng)
 	return module.Run(ctx)
 }

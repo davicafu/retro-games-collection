@@ -148,6 +148,7 @@ go run . play sokoban
 go run . play runner
 go run . play drone
 go run . play breach
+go run . play botnet
 ```
 
 Game names are case-insensitive. An unknown name opens the launcher menu.
