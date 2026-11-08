@@ -2,7 +2,11 @@
 // bouncing off an injector to break through a firewall.
 package breach
 
-import "time"
+import (
+	"time"
+
+	"github.com/davidbarreiro/cli-games-collection/internal/engine/glide"
+)
 
 // TickPeriod is the real time one Step stands for; every per-tick constant
 // below is tuned to it.
@@ -33,7 +37,7 @@ const (
 	// key. Terminals report presses but not releases, so key repeats refresh
 	// the glide while the key is held; it outlasts a typical repeat interval.
 	PaddleGlide = 6
-	// PaddleSpeed is the glide speed in cells per paddleUnit ticks.
+	// PaddleSpeed is the glide speed in cells per glide.Unit ticks.
 	PaddleSpeed  = 67
 	StartLives   = 2
 	MaxLives     = 2
@@ -67,9 +71,7 @@ type Game struct {
 	paddleX   int
 	wideTicks int
 
-	glideDir  int
-	glideLeft int
-	glideAcc  int // glide progress towards the next cell, in paddleUnit points
+	glide glide.Glide
 
 	bx, by   int // virus position in sub-cells
 	vx, vy   int
@@ -89,6 +91,7 @@ func NewGame(cfg Config) *Game {
 		levels: cfg.Levels,
 		rng:    cfg.Rand,
 		lives:  StartLives,
+		glide:  glide.Glide{Speed: PaddleSpeed, Ticks: PaddleGlide},
 	}
 	g.loadLevel(0)
 	return g
@@ -124,7 +127,7 @@ func (g *Game) loadLevel(i int) {
 	g.bricks = g.levels[i].Bricks()
 	g.drops = nil
 	g.wideTicks = 0
-	g.glideLeft = 0
+	g.glide.Stop()
 	g.paddleX = (g.width - g.paddleWidth()) / 2
 	g.rideInjector()
 }
@@ -149,27 +152,12 @@ func (g *Game) cleared() bool {
 
 func (g *Game) speed() int { return g.levels[g.level].Speed }
 
-// paddleUnit is the number of PaddleSpeed points that move the injector one cell.
-const paddleUnit = 100
-
 func (g *Game) movePaddle(move int) {
 	if move != 0 {
-		if g.glideLeft == 0 || move != g.glideDir {
-			// A fresh press moves on this very tick.
-			g.glideAcc = paddleUnit - PaddleSpeed
-		}
-		g.glideDir, g.glideLeft = move, PaddleGlide
+		g.glide.Press(move)
 	}
-	if g.glideLeft == 0 {
-		return
-	}
-	g.glideLeft--
-	g.glideAcc += PaddleSpeed
-	if g.glideAcc >= paddleUnit {
-		g.glideAcc -= paddleUnit
-		g.paddleX += g.glideDir
-		g.clampPaddle()
-	}
+	g.paddleX += g.glide.Step()
+	g.clampPaddle()
 }
 
 func (g *Game) clampPaddle() {

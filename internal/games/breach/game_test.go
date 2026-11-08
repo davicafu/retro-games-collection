@@ -1,6 +1,8 @@
 package breach
 
 import (
+	"github.com/davidbarreiro/cli-games-collection/internal/engine/glide"
+
 	"fmt"
 	"math/rand"
 	"testing"
@@ -73,7 +75,7 @@ func TestInjectorMovesOnTheFirstTickThenGlidesAndStops(t *testing.T) {
 			t.Fatalf("offsets %v: the injector must glide at most one cell per tick", got)
 		}
 	}
-	want := (paddleUnit - PaddleSpeed + PaddleGlide*PaddleSpeed) / paddleUnit
+	want := (glide.Unit - PaddleSpeed + PaddleGlide*PaddleSpeed) / glide.Unit
 	if last := got[len(got)-1]; last != want || got[PaddleGlide-1] != want {
 		t.Fatalf("offsets %v: a tap must glide %d cells and stop after %d ticks", got, want, PaddleGlide)
 	}
@@ -85,8 +87,8 @@ func TestHoldingAMoveKeyGlidesAtPaddleSpeedAndStopsAtTheWalls(t *testing.T) {
 	for i := 0; i < 9; i++ {
 		g.Step(Input{Move: 1})
 	}
-	if x, _ := g.Paddle(); x-start != (paddleUnit-PaddleSpeed+9*PaddleSpeed)/paddleUnit {
-		t.Fatalf("moved %d cells in 9 held ticks, want %d", x-start, (paddleUnit-PaddleSpeed+9*PaddleSpeed)/paddleUnit)
+	if x, _ := g.Paddle(); x-start != (glide.Unit-PaddleSpeed+9*PaddleSpeed)/glide.Unit {
+		t.Fatalf("moved %d cells in 9 held ticks, want %d", x-start, (glide.Unit-PaddleSpeed+9*PaddleSpeed)/glide.Unit)
 	}
 	for i := 0; i < 100; i++ {
 		g.Step(Input{Move: 1})
@@ -125,7 +127,7 @@ func TestRealTimeSpeedsDoNotDependOnTheTickRate(t *testing.T) {
 	if got := DropSpeed * perSecond / SubCells; got != 6 {
 		t.Fatalf("drops fall %d cells/s, want 6", got)
 	}
-	if got := PaddleSpeed * perSecond / paddleUnit; got != 40 {
+	if got := PaddleSpeed * perSecond / glide.Unit; got != 40 {
 		t.Fatalf("injector glides %d cells/s, want 40", got)
 	}
 	if got := time.Duration(WideTicks) * TickPeriod; got.Round(time.Millisecond) != 15*time.Second {
