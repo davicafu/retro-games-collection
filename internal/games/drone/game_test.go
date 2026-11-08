@@ -3,6 +3,7 @@ package drone
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/scroll"
 )
@@ -30,7 +31,7 @@ func positions(g *Game, thrusts ...bool) []int {
 func idle(n int) []bool { return make([]bool, n) }
 
 func TestDroneHoversAndWorldWaitsUntilFirstThrust(t *testing.T) {
-	g := newTestGame(Antenna{X: 20, GapTop: 3})
+	g := newTestGame(Antenna{X: 20, GapTop: 3, Gap: 5})
 	start := g.Position()
 
 	positions(g, idle(50)...)
@@ -69,7 +70,7 @@ func TestThrustReplacesVelocityInsteadOfAddingUp(t *testing.T) {
 
 func TestFallSpeedIsCapped(t *testing.T) {
 	g := NewGame(Config{Width: testWidth, Height: 200, DroneX: testDroneX})
-	positions(g, append([]bool{true}, idle(60)...)...)
+	positions(g, append([]bool{true}, idle((Thrust+MaxFall)/Gravity+1)...)...)
 	if g.Velocity() != MaxFall {
 		t.Fatalf("velocity = %d, want cap %d", g.Velocity(), MaxFall)
 	}
@@ -77,7 +78,7 @@ func TestFallSpeedIsCapped(t *testing.T) {
 
 func TestCeilingStopsTheDrone(t *testing.T) {
 	g := newTestGame()
-	for i := 0; i < 30; i++ {
+	for i := 0; i < testHeight/2*SubCells/Thrust+2; i++ {
 		g.Step(true)
 	}
 	if g.Dead() {
@@ -106,9 +107,9 @@ func TestTouchingTheGroundEndsTheRound(t *testing.T) {
 	}
 }
 
-// hoverCycle is a thrust period whose net drift is zero: with Thrust 45 and
-// Gravity 5 the drone rises and falls back to where it thrusted after 19 ticks.
-const hoverCycle = 19
+// hoverCycle is a thrust period whose net drift is zero: the drone rises and
+// falls back to where it thrusted.
+const hoverCycle = 2*Thrust/Gravity + 1
 
 // scrollUntil flies the drone, thrusting every thrustEvery ticks, until done or death.
 func scrollUntil(g *Game, thrustEvery int, done func() bool) {
@@ -119,7 +120,7 @@ func scrollUntil(g *Game, thrustEvery int, done func() bool) {
 
 func TestHittingAMastEndsTheRound(t *testing.T) {
 	// Gap rows 8..12; the drone hovers in rows 3..6, so it hits the upper mast.
-	g := newTestGame(Antenna{X: testDroneX + 3, GapTop: 8})
+	g := newTestGame(Antenna{X: testDroneX + 3, GapTop: 8, Gap: 5})
 	scrollUntil(g, hoverCycle, func() bool { return false })
 	if !g.Dead() {
 		t.Fatalf("expected a collision with the mast")
@@ -131,7 +132,7 @@ func TestHittingAMastEndsTheRound(t *testing.T) {
 
 func TestFlyingThroughTheGapScores(t *testing.T) {
 	// Gap rows 2..6 around the drone's hover band (rows 3..6).
-	g := newTestGame(Antenna{X: testDroneX + 3, GapTop: 2})
+	g := newTestGame(Antenna{X: testDroneX + 3, GapTop: 2, Gap: 5})
 	scrollUntil(g, hoverCycle, func() bool { return g.Score() == 1 })
 	if g.Dead() || g.Score() != 1 {
 		t.Fatalf("dead=%v score=%d row=%d, want alive with score 1", g.Dead(), g.Score(), g.Row())
@@ -142,7 +143,7 @@ func TestFlyingThroughTheGapScores(t *testing.T) {
 }
 
 func TestAntennasLeavingTheScreenAreDropped(t *testing.T) {
-	g := newTestGame(Antenna{X: 0, GapTop: 0})
+	g := newTestGame(Antenna{X: 0, GapTop: 0, Gap: 5})
 	g.Step(true)
 	for i := 0; i < 20 && len(g.Antennas()) > 0; i++ {
 		g.Step(i%9 == 0)
@@ -174,7 +175,7 @@ func TestMaxSpeedNeverScrollsMoreThanOneCellPerTick(t *testing.T) {
 }
 
 func TestDeadGameDoesNotAdvance(t *testing.T) {
-	g := newTestGame(Antenna{X: 20, GapTop: 3})
+	g := newTestGame(Antenna{X: 20, GapTop: 3, Gap: 5})
 	g.Step(true)
 	g.dead = true
 	pos, x := g.Position(), g.Antennas()[0].X
@@ -199,14 +200,50 @@ func TestGroundRowIsTheFirstRowBelowTheSky(t *testing.T) {
 }
 
 func TestGapEdgesAreExact(t *testing.T) {
-	a := Antenna{X: testDroneX, GapTop: 3}
-	cases := map[int]bool{2: true, 3: false, 3 + GapSize - 1: false, 3 + GapSize: true}
+	a := Antenna{X: testDroneX, GapTop: 3, Gap: 5}
+	cases := map[int]bool{2: true, 3: false, 3 + a.Gap - 1: false, 3 + a.Gap: true}
 	for row, blocked := range cases {
 		g := newTestGame(a)
 		g.started = true
 		g.position = row * SubCells
 		if got := g.collides(); got != blocked {
-			t.Fatalf("row %d: collides = %v, want %v (gap rows 3..%d)", row, got, blocked, 3+GapSize-1)
+			t.Fatalf("row %d: collides = %v, want %v (gap rows 3..%d)", row, got, blocked, 3+a.Gap-1)
 		}
+	}
+}
+
+// TestRealTimeSpeedsDoNotDependOnTheTickRate pins speeds per second, so a
+// change of TickPeriod must rescale the per-tick constants with it.
+func TestRealTimeSpeedsDoNotDependOnTheTickRate(t *testing.T) {
+	if TickPeriod != time.Second/60 {
+		t.Fatalf("tick period = %v, want 60 ticks per second", TickPeriod)
+	}
+	perSecond := int(time.Second / TickPeriod)
+	cases := []struct {
+		name      string
+		got, want int
+	}{
+		{"thrust cells/s", Thrust * perSecond / SubCells, 9},
+		{"max fall cells/s", MaxFall * perSecond / SubCells, 12},
+		{"gravity cells/s²", Gravity * perSecond * perSecond / SubCells, 20},
+	}
+	for _, c := range cases {
+		if c.got != c.want {
+			t.Fatalf("%s = %d, want %d", c.name, c.got, c.want)
+		}
+	}
+	// Scroll speeds are whole points per scroll.Unit ticks, so they can only
+	// approximate cells per second: within 5% of 8 and 14 cells/s.
+	for _, c := range []struct {
+		name        string
+		speed, want int
+	}{{"start scroll", BaseSpeed, 8}, {"top scroll", MaxSpeed, 14}} {
+		perMinute := c.speed * perSecond * 60 / scroll.Unit
+		if perMinute*100 < c.want*60*95 || perMinute*100 > c.want*60*105 {
+			t.Fatalf("%s = %d cells/min, want about %d", c.name, perMinute, c.want*60)
+		}
+	}
+	if speedRamp.At(179) == MaxSpeed || speedRamp.At(180) != MaxSpeed {
+		t.Fatalf("scroll must reach its top speed at 180 cells")
 	}
 }

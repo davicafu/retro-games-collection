@@ -79,7 +79,7 @@ func drawAntenna(screen render.Screen, l layout, a Antenna, width, height int) {
 			switch row {
 			case a.GapTop - 1:
 				glyph = glyphUpperTip
-			case a.GapTop + GapSize:
+			case a.GapTop + a.Gap:
 				glyph = glyphLowerTip
 			}
 			p := l.toScreen(x, row)

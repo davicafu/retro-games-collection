@@ -33,7 +33,7 @@ func TestFirstAntennaSpawnsAtTheRightEdgeWithinBounds(t *testing.T) {
 
 func TestNextAntennaWaitsForTheSpacing(t *testing.T) {
 	s := NewRandomSpawner(&scriptedRand{})
-	last := Antenna{X: 40 - AntennaSpacing + 1, GapTop: 4}
+	last := Antenna{X: 40 - AntennaSpacing + 1, GapTop: 4, Gap: 5}
 	if got := s.Spawn([]Antenna{last}, 40, 12); len(got) != 1 {
 		t.Fatalf("spawned before the spacing was reached: %+v", got)
 	}
@@ -68,8 +68,8 @@ func TestGapsStayReachableOverALongRun(t *testing.T) {
 	}
 	shifts := map[int]bool{}
 	for i, a := range all {
-		if a.GapTop < minGapTop || a.GapTop+GapSize > height-1 {
-			t.Fatalf("antenna %d gap %d..%d leaves no mast inside sky of %d rows", i, a.GapTop, a.GapTop+GapSize-1, height)
+		if a.GapTop < minGapTop || a.GapTop+a.Gap > height-1 {
+			t.Fatalf("antenna %d gap %d..%d leaves no mast inside sky of %d rows", i, a.GapTop, a.GapTop+a.Gap-1, height)
 		}
 		if i == 0 {
 			continue
@@ -85,12 +85,21 @@ func TestGapsStayReachableOverALongRun(t *testing.T) {
 	}
 }
 
-// autopilot thrusts when the drone sinks below the lower part of the next gap.
+// thrustRise is how far a thrust from rest lifts the drone before it falls.
+func thrustRise() int {
+	rise := 0
+	for v := Thrust; v > 0; v -= Gravity {
+		rise += v
+	}
+	return rise
+}
+
+// autopilot thrusts whenever the top of the resulting climb stays inside the
+// next gap, so the drone keeps to the upper part of every gap.
 func autopilot(g *Game) bool {
 	for _, a := range g.Antennas() {
 		if a.X+AntennaWidth > g.DroneX() {
-			floor := (a.GapTop + GapSize - 2) * SubCells
-			return g.Position()+g.Velocity() > floor
+			return g.Position()-thrustRise() >= a.GapTop*SubCells
 		}
 	}
 	return g.Position() > g.Height()/2*SubCells
@@ -104,7 +113,7 @@ func TestEveryGapIsReachableAtMaxSpeed(t *testing.T) {
 		g := NewGame(Config{Width: 48, Height: 14, DroneX: 8, Spawner: NewRandomSpawner(rand.New(rand.NewSource(seed)))})
 		g.distance = 100000 // speed at MaxSpeed from the start
 		g.Step(true)
-		for tick := 0; tick < 8000; tick++ {
+		for tick := 0; tick < 24000; tick++ {
 			g.Step(autopilot(g))
 			if g.Dead() {
 				t.Fatalf("seed %d: crashed at tick %d, row %d, score %d, antennas %+v", seed, tick, g.Row(), g.Score(), g.Antennas())
@@ -113,5 +122,44 @@ func TestEveryGapIsReachableAtMaxSpeed(t *testing.T) {
 		if g.Score() < 300 {
 			t.Fatalf("seed %d: score %d, autopilot barely passed antennas", seed, g.Score())
 		}
+	}
+}
+
+// TestGapsVaryInSizeAndNarrowStepByStep spawns antennas one after another:
+// gap sizes vary inside a range that starts at StartGap..StartGap+GapVariety-1
+// rows and drops by one row every NarrowEvery antennas, its narrowest end
+// down to MinGap and its widest down to MinGap+1.
+func TestGapsVaryInSizeAndNarrowStepByStep(t *testing.T) {
+	const width, height = 40, 14
+	const stages = 5
+	s := NewRandomSpawner(rand.New(rand.NewSource(3)))
+	prev := s.Spawn(nil, width, height)[0]
+	gaps := []int{prev.Gap}
+	for len(gaps) < stages*NarrowEvery {
+		prev.X = width - AntennaSpacing
+		prev = s.Spawn([]Antenna{prev}, width, height)[1]
+		gaps = append(gaps, prev.Gap)
+	}
+
+	seen := map[int]map[int]bool{}
+	for i, gap := range gaps {
+		stage := i / NarrowEvery
+		narrowest := max(MinGap, StartGap-stage)
+		widest := max(MinGap+1, StartGap+GapVariety-1-stage)
+		if gap < narrowest || gap > widest {
+			t.Fatalf("antenna %d (stage %d): gap %d, want %d..%d", i, stage, gap, narrowest, widest)
+		}
+		if seen[stage] == nil {
+			seen[stage] = map[int]bool{}
+		}
+		seen[stage][gap] = true
+	}
+	for stage, sizes := range seen {
+		if len(sizes) < 2 {
+			t.Fatalf("stage %d: every gap had the same size %v", stage, sizes)
+		}
+	}
+	if last := seen[stages-1]; !last[MinGap] || !last[MinGap+1] || len(last) != 2 {
+		t.Fatalf("late gaps = %v, want only %d and %d rows", last, MinGap, MinGap+1)
 	}
 }

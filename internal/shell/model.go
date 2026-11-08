@@ -409,7 +409,7 @@ func runRunnerGame(ctx context.Context, provider input.Provider, screen render.S
 }
 
 func runDroneGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
-	ticker := clock.NewTicker(50 * time.Millisecond)
+	ticker := clock.NewTicker(drone.TickPeriod)
 	defer ticker.Stop()
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))

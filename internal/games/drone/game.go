@@ -2,43 +2,49 @@
 // between antenna masts that grow from the ceiling and the ground.
 package drone
 
-import "github.com/davidbarreiro/cli-games-collection/internal/engine/scroll"
+import (
+	"time"
+
+	"github.com/davidbarreiro/cli-games-collection/internal/engine/scroll"
+)
+
+// TickPeriod is the real time one Step stands for; every per-tick constant
+// below is tuned to it.
+const TickPeriod = time.Second / 60
 
 // Physics uses integer sub-cells so the simulation stays deterministic.
 // Positions grow downwards: row 0 is the top of the sky.
 const (
-	SubCells = 100 // sub-cells per cell
+	SubCells = 1800 // sub-cells per cell
 
-	Gravity = 5  // sub-cells per tick added to the velocity every tick
-	Thrust  = 45 // upward velocity a thrust sets, in sub-cells per tick
-	MaxFall = 60 // terminal fall velocity, in sub-cells per tick
+	Gravity = 10  // sub-cells per tick added to the velocity every tick
+	Thrust  = 270 // upward velocity a thrust sets, in sub-cells per tick
+	MaxFall = 360 // terminal fall velocity, in sub-cells per tick
 )
 
 // Speed is measured in cells per scroll.Unit ticks and must stay below
 // scroll.Unit so masts move at most one cell per tick.
 const (
-	BaseSpeed     = 40
-	SpeedStep     = 5
-	SpeedDistance = 30
-	MaxSpeed      = 70
+	BaseSpeed     = 13
+	SpeedStep     = 2
+	SpeedDistance = 36
+	MaxSpeed      = 23
 )
 
 var speedRamp = scroll.Ramp{Base: BaseSpeed, Step: SpeedStep, Every: SpeedDistance, Max: MaxSpeed}
 
-const (
-	AntennaWidth = 2
-	GapSize      = 5
-)
+const AntennaWidth = 2
 
 // Antenna is a pair of masts covering columns X..X+AntennaWidth-1, open only
-// between rows GapTop and GapTop+GapSize-1.
+// on the Gap rows from GapTop to GapTop+Gap-1.
 type Antenna struct {
 	X      int
 	GapTop int
+	Gap    int
 }
 
 func (a Antenna) blocks(row int) bool {
-	return row < a.GapTop || row >= a.GapTop+GapSize
+	return row < a.GapTop || row >= a.GapTop+a.Gap
 }
 
 func (a Antenna) covers(x int) bool {

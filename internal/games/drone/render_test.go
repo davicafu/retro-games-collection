@@ -44,7 +44,7 @@ func TestDrawPlacesTheDroneOnItsRow(t *testing.T) {
 }
 
 func TestDrawAntennaLeavesTheGapOpenWithTipsAtItsEdges(t *testing.T) {
-	a := Antenna{X: 20, GapTop: 3}
+	a := Antenna{X: 20, GapTop: 3, Gap: 5}
 	rows := drawRows(newTestGame(a))
 
 	for x := a.X; x < a.X+AntennaWidth; x++ {
@@ -54,7 +54,7 @@ func TestDrawAntennaLeavesTheGapOpenWithTipsAtItsEdges(t *testing.T) {
 			switch {
 			case row == a.GapTop-1:
 				want = glyphUpperTip
-			case row == a.GapTop+GapSize:
+			case row == a.GapTop+a.Gap:
 				want = glyphLowerTip
 			case a.blocks(row):
 				want = glyphMast
@@ -69,7 +69,7 @@ func TestDrawAntennaLeavesTheGapOpenWithTipsAtItsEdges(t *testing.T) {
 }
 
 func TestDrawClipsAntennasToThePlayfield(t *testing.T) {
-	rows := drawRows(newTestGame(Antenna{X: testWidth - 1, GapTop: 3}, Antenna{X: -1, GapTop: 3}))
+	rows := drawRows(newTestGame(Antenna{X: testWidth - 1, GapTop: 3, Gap: 5}, Antenna{X: -1, GapTop: 3, Gap: 5}))
 	right := testLayout.toScreen(testWidth, 0)
 	if got := rows[right.Y][right.X]; got != '│' {
 		t.Fatalf("right border = %q, antenna drawn over it", got)
