@@ -13,14 +13,15 @@ func drawRows(g *Game) [][]rune {
 	return screen.Rows()
 }
 
-var testLayout = newLayout(80, 24, testWidth, testHeight)
+// testFrame is the frame Draw uses on the 80x24 test screen for the test playfield.
+var testFrame = render.CenterFrame(render.NewBufferScreen(80, 24), testWidth, testHeight)
 
 func cellAt(rows [][]rune, col, row int) rune {
-	p := testLayout.toScreen(col, row)
-	return rows[p.Y][p.X]
+	sx, sy := testFrame.Cell(col, row)
+	return rows[sy][sx]
 }
 
-func hud(rows [][]rune) string { return string(rows[testLayout.originY]) }
+func hud(rows [][]rune) string { return string(rows[testFrame.Y]) }
 
 func TestDrawHUDShowsLevelScoreLivesAndWide(t *testing.T) {
 	// Real playfield width: the test one is too narrow for the full HUD.
@@ -109,16 +110,6 @@ func TestDrawDrops(t *testing.T) {
 	}
 	if got := cellAt(rows, 12, 7); got != glyphLife {
 		t.Fatalf("life drop = %q, want %q", got, glyphLife)
-	}
-}
-
-func TestLayoutCentersTheFrame(t *testing.T) {
-	l := newLayout(80, 24, 40, 16)
-	if l.originX != (80-42)/2 || l.originY != (24-19)/2 {
-		t.Fatalf("layout = %+v, want centred", l)
-	}
-	if small := newLayout(10, 5, 40, 16); small.originX != 0 || small.originY != 0 {
-		t.Fatalf("layout on a small screen = %+v, want clamped to 0", small)
 	}
 }
 

@@ -35,7 +35,7 @@ Source requirements: README roadmap row `| 4 | Flappy-inspired | Gravity, impuls
 
 ## Follow-ups (not done, out of scope)
 
-- Screen-centering `layout` is now duplicated in Runner and Drone (Snake has its own); a candidate for `internal/engine/render` when a third game needs it.
+- ~~Screen-centering `layout` duplicated in Runner and Drone~~: moved to `render.Frame` in Botnet T1 (2026-11-08).
 - Manual play-test in a real terminal not done by the agent (needs a TTY).
 
 Routing: every unit depends on T1/T2; no independent parallel units, no writer delegation. Commits wait for the user's explicit request (user rule).

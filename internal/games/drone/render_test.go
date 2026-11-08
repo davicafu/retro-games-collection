@@ -13,23 +13,23 @@ func drawRows(g *Game) [][]rune {
 	return screen.Rows()
 }
 
-// testLayout is the layout Draw uses on the 80x24 test screen for the test playfield.
-var testLayout = newLayout(80, 24, testWidth, testHeight)
+// testFrame is the frame Draw uses on the 80x24 test screen for the test playfield.
+var testFrame = render.CenterFrame(render.NewBufferScreen(80, 24), testWidth, testHeight)
 
 func cellAt(rows [][]rune, x, row int) rune {
-	p := testLayout.toScreen(x, row)
-	return rows[p.Y][p.X]
+	sx, sy := testFrame.Cell(x, row)
+	return rows[sy][sx]
 }
 
 func TestDrawHUDShowsTakeOffHintThenScore(t *testing.T) {
 	g := newTestGame()
-	if hud := string(drawRows(g)[testLayout.originY]); !strings.Contains(hud, "Score: 0") || !strings.Contains(hud, "to take off") {
+	if hud := string(drawRows(g)[testFrame.Y]); !strings.Contains(hud, "Score: 0") || !strings.Contains(hud, "to take off") {
 		t.Fatalf("HUD before start %q, want score and take-off hint", hud)
 	}
 
 	g.Step(true)
 	g.score = 7
-	hud := string(drawRows(g)[testLayout.originY])
+	hud := string(drawRows(g)[testFrame.Y])
 	if !strings.Contains(hud, "Score: 7") || strings.Contains(hud, "take off") {
 		t.Fatalf("HUD in flight %q, want score without the hint", hud)
 	}
@@ -70,12 +70,10 @@ func TestDrawAntennaLeavesTheGapOpenWithTipsAtItsEdges(t *testing.T) {
 
 func TestDrawClipsAntennasToThePlayfield(t *testing.T) {
 	rows := drawRows(newTestGame(Antenna{X: testWidth - 1, GapTop: 3, Gap: 5}, Antenna{X: -1, GapTop: 3, Gap: 5}))
-	right := testLayout.toScreen(testWidth, 0)
-	if got := rows[right.Y][right.X]; got != '│' {
+	if got := cellAt(rows, testWidth, 0); got != '│' {
 		t.Fatalf("right border = %q, antenna drawn over it", got)
 	}
-	left := testLayout.toScreen(-1, 0)
-	if got := rows[left.Y][left.X]; got != '│' {
+	if got := cellAt(rows, -1, 0); got != '│' {
 		t.Fatalf("left border = %q, antenna drawn over it", got)
 	}
 }
@@ -86,16 +84,5 @@ func TestDrawGroundLineBelowTheSky(t *testing.T) {
 		if got := cellAt(rows, x, testHeight); got != glyphGround {
 			t.Fatalf("ground column %d = %q, want %q", x, got, glyphGround)
 		}
-	}
-}
-
-func TestLayoutCentersTheFrame(t *testing.T) {
-	l := newLayout(80, 24, 48, 14)
-	frameWidth, frameHeight := 48+2, 1+1+14+1
-	if l.originX != (80-frameWidth)/2 || l.originY != (24-frameHeight)/2 {
-		t.Fatalf("layout = %+v, want centered", l)
-	}
-	if small := newLayout(10, 5, 48, 14); small.originX != 0 || small.originY != 0 {
-		t.Fatalf("layout on a small screen = %+v, want clamped to 0", small)
 	}
 }

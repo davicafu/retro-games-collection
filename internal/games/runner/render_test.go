@@ -13,13 +13,13 @@ func drawRows(g *Game) [][]rune {
 	return screen.Rows()
 }
 
-// testLayout is the layout Draw uses on the 80x24 test screen for a 40-wide playfield.
-var testLayout = newLayout(80, 24, 40)
+// testFrame is the frame Draw uses on the 80x24 test screen for a 40-wide playfield.
+var testFrame = render.CenterFrame(render.NewBufferScreen(80, 24), 40, skyHeight)
 
 // cellAt returns the rune drawn for playfield column x at height h above the ground.
 func cellAt(rows [][]rune, x, h int) rune {
-	p := testLayout.toScreen(x, h)
-	return rows[p.Y][p.X]
+	sx, sy := testFrame.Cell(x, skyHeight-1-h)
+	return rows[sy][sx]
 }
 
 func TestDrawShowsScoreAndSpeedMultiplier(t *testing.T) {
@@ -28,7 +28,7 @@ func TestDrawShowsScoreAndSpeedMultiplier(t *testing.T) {
 		g.Step(ActionNone)
 	}
 
-	hud := string(drawRows(g)[testLayout.originY])
+	hud := string(drawRows(g)[testFrame.Y])
 
 	if !strings.Contains(hud, "Score: 40") {
 		t.Fatalf("HUD %q missing score", hud)
@@ -115,24 +115,9 @@ func TestDrawClipsObstaclesOutsideThePlayfield(t *testing.T) {
 
 func TestDrawGroundLine(t *testing.T) {
 	rows := drawRows(newTestGame())
-	ground := testLayout.toScreen(0, -1)
+	gx, gy := testFrame.Cell(0, skyHeight)
 
-	if got := string(rows[ground.Y][ground.X : ground.X+40]); got != strings.Repeat(string(glyphGroundLine), 40) {
+	if got := string(rows[gy][gx : gx+40]); got != strings.Repeat(string(glyphGroundLine), 40) {
 		t.Fatalf("ground row = %q", got)
-	}
-}
-
-func TestDrawCentersPlayfieldSoOverlaysSitOnIt(t *testing.T) {
-	// 80x24 screen, 40-wide playfield: box is 42x8, plus the HUD row above it.
-	l := newLayout(80, 24, 40)
-	if l.originX != 19 || l.originY != 7 {
-		t.Fatalf("origin = (%d,%d), want (19,7)", l.originX, l.originY)
-	}
-}
-
-func TestDrawPinsPlayfieldToTopLeftOnSmallScreens(t *testing.T) {
-	l := newLayout(30, 5, 40)
-	if l.originX != 0 || l.originY != 0 {
-		t.Fatalf("origin = (%d,%d), want (0,0) when the screen is smaller than the playfield", l.originX, l.originY)
 	}
 }
