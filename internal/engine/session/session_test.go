@@ -243,3 +243,18 @@ func TestRenderDrawsRoundThenOverlayOnTop(t *testing.T) {
 		t.Fatalf("overlay not rendered:\n%s", screen.Snapshot())
 	}
 }
+
+// titledRound ends at once and names its own end-of-round title.
+type titledRound struct{ fakeRound }
+
+func (r *titledRound) OverTitle() string { return "FIREWALL BREACHED" }
+
+func TestRoundCanNameTheGameOverTitle(t *testing.T) {
+	s := New(func() Round { return &titledRound{fakeRound{endOn: 1}} })
+	update(t, s, press())
+
+	m, open := s.Overlay()
+	if !open || m.Title() != "FIREWALL BREACHED" {
+		t.Fatalf("title = %q, want the round's title", m.Title())
+	}
+}

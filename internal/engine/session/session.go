@@ -22,6 +22,12 @@ type Round interface {
 	Summary() []overlay.Section
 }
 
+// OverTitler is optionally implemented by a Round to title the end-of-round
+// overlay, e.g. for a win. Rounds without it get "Game Over".
+type OverTitler interface {
+	OverTitle() string
+}
+
 // Overlay option IDs.
 const (
 	OptionContinue = "continue"
@@ -124,7 +130,11 @@ func (s *Session) openPause() {
 }
 
 func (s *Session) openGameOver() {
-	m := overlay.NewAction("Game Over", s.round.Summary(), []overlay.Option{
+	title := "Game Over"
+	if t, ok := s.round.(OverTitler); ok {
+		title = t.OverTitle()
+	}
+	m := overlay.NewAction(title, s.round.Summary(), []overlay.Option{
 		{ID: OptionRestart, Label: "Restart", Enabled: true},
 		{ID: OptionMenu, Label: "Menu", Enabled: true},
 	})
