@@ -99,9 +99,9 @@ func TestLevelWallParsing(t *testing.T) {
 
 func TestSolidBlockBouncesWithoutDamageOrScore(t *testing.T) {
 	g := newTestGame(Brick{X: 8, Y: 3, Solid: true}, farBrick)
-	place(g, 9, 4, 0, -60)
+	place(g, 9, 4, 0, -120)
 	g.Step(Input{})
-	if _, vy := g.Velocity(); vy != 60 {
+	if _, vy := g.Velocity(); vy != 120 {
 		t.Fatalf("vy = %d, want reflected", vy)
 	}
 	if len(g.Bricks()) != 2 || g.Score() != 0 {
@@ -111,7 +111,7 @@ func TestSolidBlockBouncesWithoutDamageOrScore(t *testing.T) {
 
 func TestOnlySolidBlocksLeftClearsTheLevel(t *testing.T) {
 	g := newTestGame(Brick{X: 8, Y: 3, HP: 1}, Brick{X: 0, Y: 1, Solid: true})
-	place(g, 9, 4, 0, -60)
+	place(g, 9, 4, 0, -120)
 	g.Step(Input{})
 	if !g.Won() {
 		t.Fatalf("a level with only indestructible blocks left must be cleared")
@@ -126,10 +126,10 @@ func twoLevels() *Game {
 
 func TestClearingALevelLoadsTheNextOneKeepingScoreAndLives(t *testing.T) {
 	g := twoLevels()
-	g.lives = 2
-	g.drops = []Drop{{Col: 15, Y: 100, Kind: PowerUpLife}}
+	g.lives = 1
+	g.drops = []Drop{{Col: 15, Y: SubCells, Kind: PowerUpLife}}
 	g.wideTicks = 50
-	place(g, 1, FirewallTop+1, 0, -60)
+	place(g, 1, FirewallTop+1, 0, -120)
 	g.Step(Input{})
 
 	if g.Won() || g.Level() != 2 || g.LevelCount() != 2 {
@@ -138,7 +138,7 @@ func TestClearingALevelLoadsTheNextOneKeepingScoreAndLives(t *testing.T) {
 	if len(g.Bricks()) != 4 || g.Launched() {
 		t.Fatalf("level 2 must load its wall with the virus back on the injector")
 	}
-	if g.Score() != PointsPerHit || g.Lives() != 2 {
+	if g.Score() != PointsPerHit || g.Lives() != 1 {
 		t.Fatalf("score=%d lives=%d, want them carried over", g.Score(), g.Lives())
 	}
 	if len(g.Drops()) != 0 || g.WideLeft() != 0 {
@@ -148,7 +148,7 @@ func TestClearingALevelLoadsTheNextOneKeepingScoreAndLives(t *testing.T) {
 
 func TestLevelSpeedScalesTheLaunch(t *testing.T) {
 	g := twoLevels()
-	place(g, 1, FirewallTop+1, 0, -60)
+	place(g, 1, FirewallTop+1, 0, -120)
 	g.Step(Input{})
 	g.Step(Input{Launch: true})
 	want := Diagonal.scaled(150)
@@ -161,7 +161,7 @@ func TestClearingTheLastLevelBreachesTheFirewall(t *testing.T) {
 	g := twoLevels()
 	g.level = 1
 	g.bricks = []Brick{{X: 8, Y: 3, HP: 1}}
-	place(g, 9, 4, 0, -60)
+	place(g, 9, 4, 0, -120)
 	g.Step(Input{})
 	if !g.Won() {
 		t.Fatalf("clearing the last level must win")
@@ -174,7 +174,7 @@ func TestLevelDropOddsAreUsed(t *testing.T) {
 	rng := &recordingRand{}
 	g.rng = rng
 	g.bricks = []Brick{{X: 8, Y: 3, HP: 1}, farBrick}
-	place(g, 9, 4, 0, -60)
+	place(g, 9, 4, 0, -120)
 	g.Step(Input{})
 	if len(rng.asked) == 0 || rng.asked[0] != 8 {
 		t.Fatalf("drop roll asked Intn(%v), want the level's odds 8", rng.asked)

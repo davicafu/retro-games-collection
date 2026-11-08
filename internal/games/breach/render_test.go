@@ -41,8 +41,8 @@ func TestDrawVirusAndInjector(t *testing.T) {
 	g := newTestGame(farBrick)
 	rows := drawRows(g)
 	col, row := g.BallCell()
-	if got := cellAt(rows, col, row); got != glyphVirus {
-		t.Fatalf("virus cell = %q, want %q", got, glyphVirus)
+	if got := cellAt(rows, col, row); got != glyphVirusLow {
+		t.Fatalf("riding virus cell = %q, want %q sitting on the injector", got, glyphVirusLow)
 	}
 	x, w := g.Paddle()
 	for c := x; c < x+w; c++ {
@@ -102,7 +102,7 @@ func drawRowsFlat(g *Game) []rune {
 
 func TestDrawDrops(t *testing.T) {
 	g := newTestGame(farBrick)
-	g.drops = []Drop{{Col: 3, Y: 550, Kind: PowerUpWide}, {Col: 12, Y: 750, Kind: PowerUpLife}}
+	g.drops = []Drop{{Col: 3, Y: 5*SubCells + SubCells/2, Kind: PowerUpWide}, {Col: 12, Y: 7*SubCells + SubCells/2, Kind: PowerUpLife}}
 	rows := drawRows(g)
 	if got := cellAt(rows, 3, 5); got != glyphWide {
 		t.Fatalf("wide drop = %q, want %q", got, glyphWide)
@@ -119,5 +119,27 @@ func TestLayoutCentersTheFrame(t *testing.T) {
 	}
 	if small := newLayout(10, 5, 40, 16); small.originX != 0 || small.originY != 0 {
 		t.Fatalf("layout on a small screen = %+v, want clamped to 0", small)
+	}
+}
+
+// TestVirusIsDrawnInTheHalfOfTheCellItIsIn doubles the virus's vertical
+// resolution on screen: terminal cells are about twice as tall as wide.
+func TestVirusIsDrawnInTheHalfOfTheCellItIsIn(t *testing.T) {
+	cases := []struct {
+		subRow int
+		want   rune
+	}{
+		{0, glyphVirusHigh},
+		{SubCells/2 - 1, glyphVirusHigh},
+		{SubCells / 2, glyphVirusLow},
+		{SubCells - 1, glyphVirusLow},
+	}
+	for _, c := range cases {
+		g := newTestGame(farBrick)
+		place(g, 10, 5, 0, 0)
+		g.by = 5*SubCells + c.subRow
+		if got := cellAt(drawRows(g), 10, 5); got != c.want {
+			t.Fatalf("sub-row %d: virus = %q, want %q", c.subRow, got, c.want)
+		}
 	}
 }

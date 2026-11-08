@@ -50,16 +50,20 @@ func TestRoundMovesTheInjector(t *testing.T) {
 	start, _ := game(s).Paddle()
 
 	update(t, s, press(input.ActionRight))
-	if x, _ := game(s).Paddle(); x != start+PaddleStep {
-		t.Fatalf("right: x = %d, want %d", x, start+PaddleStep)
+	if x, _ := game(s).Paddle(); x != start+1 {
+		t.Fatalf("right: x = %d, want %d", x, start+1)
 	}
-	update(t, s, press(input.ActionLeft), press(input.ActionLeft))
-	if x, _ := game(s).Paddle(); x != start-PaddleStep {
-		t.Fatalf("left: x = %d, want %d", x, start-PaddleStep)
+	update(t, s, press(input.ActionLeft), press(input.ActionLeft), press(input.ActionLeft))
+	if x, _ := game(s).Paddle(); x != start-1 {
+		t.Fatalf("left: x = %d, want %d", x, start-1)
 	}
+	for i := 0; i < PaddleGlide; i++ {
+		update(t, s, press())
+	}
+	rest, _ := game(s).Paddle()
 	update(t, s, press(input.ActionLeft, input.ActionRight))
-	if x, _ := game(s).Paddle(); x != start-PaddleStep {
-		t.Fatalf("left+right in one frame must cancel, x = %d", x)
+	if x, _ := game(s).Paddle(); x != rest {
+		t.Fatalf("left+right in one frame must cancel, x = %d, want %d", x, rest)
 	}
 }
 
@@ -76,7 +80,7 @@ func TestRoundLaunchKeys(t *testing.T) {
 func TestBreachingShowsTheWinTitleWithScore(t *testing.T) {
 	s := sessionOf(func() *Game {
 		g := newTestGame(Brick{X: 8, Y: 3, HP: 1})
-		place(g, 9, 4, 0, -60)
+		place(g, 9, 4, 0, -120)
 		return g
 	})
 	update(t, s, press())
@@ -94,7 +98,7 @@ func TestLosingShowsGameOver(t *testing.T) {
 	s := sessionOf(func() *Game {
 		g := newTestGame(farBrick)
 		g.lives = 1
-		place(g, 0, paddleRow, 0, 60)
+		place(g, 0, paddleRow, 0, 120)
 		return g
 	})
 	update(t, s, press())
@@ -124,7 +128,7 @@ func TestModuleRunRendersAndQuits(t *testing.T) {
 		t.Fatal("module did not quit")
 	}
 	snap := screen.Snapshot()
-	if !strings.Contains(snap, "Score: 0") || !strings.Contains(snap, "▐░░▌") || !strings.Contains(snap, string(glyphVirus)) {
+	if !strings.Contains(snap, "Score: 0") || !strings.Contains(snap, "▐░░▌") || !strings.Contains(snap, string(glyphVirusLow)) {
 		t.Fatalf("expected HUD, firewall and virus on screen, got:\n%s", snap)
 	}
 }

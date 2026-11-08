@@ -418,7 +418,7 @@ func runDroneGame(ctx context.Context, provider input.Provider, screen render.Sc
 }
 
 func runBreachGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
-	ticker := clock.NewTicker(50 * time.Millisecond)
+	ticker := clock.NewTicker(breach.TickPeriod)
 	defer ticker.Stop()
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))

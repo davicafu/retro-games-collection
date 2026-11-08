@@ -2,8 +2,14 @@
 // bouncing off an injector to break through a firewall.
 package breach
 
+import "time"
+
+// TickPeriod is the real time one Step stands for; every per-tick constant
+// below is tuned to it.
+const TickPeriod = time.Second / 60
+
 // SubCells is the number of fixed-point units per cell; all motion is integer.
-const SubCells = 100
+const SubCells = 200
 
 // Velocity is a speed in sub-cells per tick. Positive Y is down.
 type Velocity struct{ X, Y int }
@@ -16,16 +22,21 @@ func (v Velocity) scaled(percent int) Velocity {
 // Exit angles off the injector, as magnitudes. Every component stays below
 // SubCells so the virus moves at most one cell per axis per tick.
 var (
-	Steep    = Velocity{X: 25, Y: 55}
-	Diagonal = Velocity{X: 45, Y: 45}
-	Shallow  = Velocity{X: 60, Y: 30}
+	Steep    = Velocity{X: 17, Y: 37}
+	Diagonal = Velocity{X: 30, Y: 30}
+	Shallow  = Velocity{X: 40, Y: 20}
 )
 
 const (
-	PaddleWidth  = 7
-	PaddleStep   = 2
-	StartLives   = 3
-	MaxLives     = 5
+	PaddleWidth = 7
+	// PaddleGlide is how many ticks the injector keeps sliding after a move
+	// key. Terminals report presses but not releases, so key repeats refresh
+	// the glide while the key is held; it outlasts a typical repeat interval.
+	PaddleGlide = 6
+	// PaddleSpeed is the glide speed in cells per paddleUnit ticks.
+	PaddleSpeed  = 67
+	StartLives   = 2
+	MaxLives     = 2
 	PointsPerHit = 10
 )
 
@@ -55,6 +66,10 @@ type Game struct {
 
 	paddleX   int
 	wideTicks int
+
+	glideDir  int
+	glideLeft int
+	glideAcc  int // glide progress towards the next cell, in paddleUnit points
 
 	bx, by   int // virus position in sub-cells
 	vx, vy   int
@@ -109,6 +124,7 @@ func (g *Game) loadLevel(i int) {
 	g.bricks = g.levels[i].Bricks()
 	g.drops = nil
 	g.wideTicks = 0
+	g.glideLeft = 0
 	g.paddleX = (g.width - g.paddleWidth()) / 2
 	g.rideInjector()
 }
@@ -133,9 +149,27 @@ func (g *Game) cleared() bool {
 
 func (g *Game) speed() int { return g.levels[g.level].Speed }
 
+// paddleUnit is the number of PaddleSpeed points that move the injector one cell.
+const paddleUnit = 100
+
 func (g *Game) movePaddle(move int) {
-	g.paddleX += move * PaddleStep
-	g.clampPaddle()
+	if move != 0 {
+		if g.glideLeft == 0 || move != g.glideDir {
+			// A fresh press moves on this very tick.
+			g.glideAcc = paddleUnit - PaddleSpeed
+		}
+		g.glideDir, g.glideLeft = move, PaddleGlide
+	}
+	if g.glideLeft == 0 {
+		return
+	}
+	g.glideLeft--
+	g.glideAcc += PaddleSpeed
+	if g.glideAcc >= paddleUnit {
+		g.glideAcc -= paddleUnit
+		g.paddleX += g.glideDir
+		g.clampPaddle()
+	}
 }
 
 func (g *Game) clampPaddle() {
@@ -166,7 +200,9 @@ func (g *Game) moveBall() {
 	switch {
 	case ny < 0:
 		g.vy = -g.vy
-	case ny/SubCells == g.paddleRow() && g.onPaddle(g.bx/SubCells):
+	case ny/SubCells == g.paddleRow() && g.by/SubCells < g.paddleRow() && g.onPaddle(g.bx/SubCells):
+		// Only a virus entering the injector row from above bounces; one that
+		// already slipped past the injector's edge keeps falling.
 		g.bounceOffPaddle()
 	case ny/SubCells >= g.height:
 		g.loseBall()
@@ -251,6 +287,9 @@ func (g *Game) Ball() (int, int) { return g.bx, g.by }
 
 // BallCell returns the virus cell (column, row).
 func (g *Game) BallCell() (int, int) { return g.bx / SubCells, g.by / SubCells }
+
+// BallInLowerHalf reports that the virus is in the lower half of its cell.
+func (g *Game) BallInLowerHalf() bool { return g.by%SubCells >= SubCells/2 }
 
 func (g *Game) Velocity() (int, int) { return g.vx, g.vy }
 func (g *Game) Launched() bool       { return g.launched }

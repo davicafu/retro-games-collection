@@ -9,16 +9,18 @@ import (
 )
 
 const (
-	glyphVirus    = '●'
-	glyphInjector = '▀'
-	glyphHP3      = '█'
-	glyphHP2      = '▓'
-	glyphHP1      = '░'
-	glyphSolid    = '╳'
-	glyphBlockL   = '▐'
-	glyphBlockR   = '▌'
-	glyphWide     = 'W'
-	glyphLife     = '♥'
+	// The virus is drawn as a half block so it moves in half-cell steps.
+	glyphVirusHigh = '▀'
+	glyphVirusLow  = '▄'
+	glyphInjector  = '▀'
+	glyphHP3       = '█'
+	glyphHP2       = '▓'
+	glyphHP1       = '░'
+	glyphSolid     = '╳'
+	glyphBlockL    = '▐'
+	glyphBlockR    = '▌'
+	glyphWide      = 'W'
+	glyphLife      = '♥'
 
 	launchHint = "↑ to launch"
 )
@@ -76,7 +78,11 @@ func Draw(screen render.Screen, g *Game) {
 		set(screen, l, col, height-1, glyphInjector)
 	}
 	if col, row := g.BallCell(); row < height {
-		set(screen, l, col, row, glyphVirus)
+		glyph := glyphVirusHigh
+		if g.BallInLowerHalf() {
+			glyph = glyphVirusLow
+		}
+		set(screen, l, col, row, glyph)
 	}
 }
 

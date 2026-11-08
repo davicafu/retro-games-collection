@@ -16,11 +16,11 @@ const (
 
 const (
 	// DropSpeed is how fast drops fall, in sub-cells per tick.
-	DropSpeed = 30
+	DropSpeed = 20
 
 	WidePaddleWidth = 11
-	// WideTicks is how long Wide lasts: 15 s at 50 ms per tick.
-	WideTicks = 300
+	// WideTicks is how long Wide lasts: 15 s at TickPeriod.
+	WideTicks = 900
 )
 
 // Drop is a power-up falling from a destroyed block; Y is in sub-cells.
