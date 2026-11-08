@@ -1,6 +1,9 @@
 package breach
 
-import "testing"
+import (
+	"math/rand"
+	"testing"
+)
 
 const (
 	testWidth  = 20
@@ -8,8 +11,17 @@ const (
 	paddleRow  = testHeight - 1
 )
 
+// testLevel is a single level at base speed; tests place their own blocks.
+var testLevel = Level{Speed: 100, DropOdds: 5}
+
 func newTestGame(bricks ...Brick) *Game {
-	return NewGame(Config{Width: testWidth, Height: testHeight, Bricks: bricks})
+	return newGameWith(nil, bricks...)
+}
+
+func newGameWith(rng Rand, bricks ...Brick) *Game {
+	g := NewGame(Config{Width: testWidth, Height: testHeight, Levels: []Level{testLevel}, Rand: rng})
+	g.bricks = append([]Brick(nil), bricks...)
+	return g
 }
 
 // farBrick keeps a round alive without being in the way of most tests.
@@ -211,22 +223,6 @@ func TestEveryAngleStaysBelowOneCellPerTick(t *testing.T) {
 	}
 }
 
-func TestDefaultFirewallHasHardenedTopRow(t *testing.T) {
-	bricks := Firewall(40)
-	if len(bricks) != 5*40/BrickWidth {
-		t.Fatalf("blocks = %d, want %d", len(bricks), 5*40/BrickWidth)
-	}
-	for _, b := range bricks {
-		want := 1
-		if b.Y == FirewallTop {
-			want = 2
-		}
-		if b.HP != want {
-			t.Fatalf("block %+v HP = %d, want %d", b, b.HP, want)
-		}
-	}
-}
-
 func TestRightWallIsTheFirstSubCellPastTheLastColumn(t *testing.T) {
 	g := newTestGame(farBrick)
 	place(g, testWidth-1, 5, SubCells/2, -30) // lands exactly on width*SubCells
@@ -239,37 +235,40 @@ func TestRightWallIsTheFirstSubCellPastTheLastColumn(t *testing.T) {
 	}
 }
 
-// TestAutopilotBreachesTheDefaultFirewall plays full rounds on the real
-// playfield: an injector that tracks the virus and varies where it lands
-// must clear every block, so the default wall never leaves a block the
-// virus cannot reach. Exit angles are pinned by TestInjectorZoneSetsTheExitAngle.
-func TestAutopilotBreachesTheDefaultFirewall(t *testing.T) {
-	for seed := 0; seed < 10; seed++ {
-		rng := &scriptedRand{values: []int{seed, seed + 1, seed + 2}}
-		g := NewGame(Config{Width: 40, Height: 16, Bricks: Firewall(40), Rand: rng})
-		// Offset the injector so each run starts from a different angle.
-		g.paddleX = seed * 3
-		g.Step(Input{Launch: true})
-		for tick := 0; tick < 20000 && !g.Over(); tick++ {
-			// Like a player, vary where the virus lands after every hit.
-			aim := g.Score()/PointsPerHit%3 - 1
-			col, _ := g.BallCell()
-			x, w := g.Paddle()
-			target := x + w/2 + aim
-			move := 0
-			switch {
-			case col < target-1:
-				move = -1
-			case col > target+1:
-				move = 1
+// TestAutopilotClearsEveryLevel plays each campaign level on the real
+// playfield: an injector that tracks the virus and picks a random landing
+// point each time the virus starts falling must clear every destructible
+// block, so no wall leaves a block the virus cannot reach. Lives are topped
+// up: this checks reachability, not the autopilot's skill. Exit angles are
+// pinned by TestInjectorZoneSetsTheExitAngle.
+func TestAutopilotClearsEveryLevel(t *testing.T) {
+	for i, level := range Campaign {
+		for seed := int64(0); seed < 3; seed++ {
+			aimRand := rand.New(rand.NewSource(seed))
+			g := NewGame(Config{Width: 40, Height: 16, Levels: []Level{level}, Rand: rand.New(rand.NewSource(seed))})
+			g.Step(Input{Launch: true})
+			aim, prevVY := 0, 0
+			for tick := 0; tick < 100000 && !g.Over(); tick++ {
+				g.lives = StartLives
+				if _, vy := g.Velocity(); vy > 0 && prevVY <= 0 {
+					aim = aimRand.Intn(5) - 2
+				}
+				_, prevVY = g.Velocity()
+				col, _ := g.BallCell()
+				x, w := g.Paddle()
+				target := x + w/2 + aim
+				move := 0
+				switch {
+				case col < target-1:
+					move = -1
+				case col > target+1:
+					move = 1
+				}
+				g.Step(Input{Move: move, Launch: true})
 			}
-			g.Step(Input{Move: move, Launch: true})
-		}
-		if !g.Won() {
-			t.Fatalf("seed %d: not breached, lives=%d blocks left=%d", seed, g.Lives(), len(g.Bricks()))
-		}
-		if g.Lives() < StartLives {
-			t.Fatalf("seed %d: autopilot lost a life", seed)
+			if !g.Won() {
+				t.Fatalf("level %d seed %d: not cleared, blocks left %+v", i+1, seed, g.Bricks())
+			}
 		}
 	}
 }

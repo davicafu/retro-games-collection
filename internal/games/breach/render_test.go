@@ -22,19 +22,18 @@ func cellAt(rows [][]rune, col, row int) rune {
 
 func hud(rows [][]rune) string { return string(rows[testLayout.originY]) }
 
-func TestDrawHUDShowsScoreLivesAndLaunchHint(t *testing.T) {
+func TestDrawHUDShowsLevelScoreLivesAndWide(t *testing.T) {
 	// Real playfield width: the test one is too narrow for the full HUD.
-	g := NewGame(Config{Width: 40, Height: testHeight, Bricks: []Brick{farBrick}})
-	h := hud(drawRows(g))
-	if !strings.Contains(h, "Score: 0") || !strings.Contains(h, strings.Repeat(string(glyphLife), StartLives)) || !strings.Contains(h, launchHint) {
-		t.Fatalf("HUD %q, want score, %d lives and launch hint", h, StartLives)
-	}
-
-	g.Step(Input{Launch: true})
+	g := NewGame(Config{Width: 40, Height: testHeight, Levels: Campaign})
+	g.level = 9
+	g.lives = MaxLives
+	g.score = 9990
 	g.wideTicks = 10
-	h = hud(drawRows(g))
-	if strings.Contains(h, launchHint) || !strings.Contains(h, "WIDE") {
-		t.Fatalf("HUD in play %q, want no launch hint and the WIDE marker", h)
+	h := hud(drawRows(g))
+	for _, want := range []string{"Level 10/10", "Score: 9990", strings.Repeat(string(glyphLife), MaxLives), "WIDE"} {
+		if !strings.Contains(h, want) {
+			t.Fatalf("HUD %q missing %q", h, want)
+		}
 	}
 }
 
@@ -57,15 +56,48 @@ func TestDrawVirusAndInjector(t *testing.T) {
 }
 
 func TestDrawBlocksShowTheirStrength(t *testing.T) {
-	rows := drawRows(newTestGame(Brick{X: 4, Y: 2, HP: 2}, Brick{X: 8, Y: 2, HP: 1}))
-	got := string([]rune{cellAt(rows, 4, 2), cellAt(rows, 5, 2), cellAt(rows, 6, 2), cellAt(rows, 7, 2)})
-	if got != "▐██▌" {
-		t.Fatalf("hardened block = %q, want %q", got, "▐██▌")
+	cases := []struct {
+		brick Brick
+		want  string
+	}{
+		{Brick{X: 0, Y: 2, HP: 3}, "▐██▌"},
+		{Brick{X: 4, Y: 2, HP: 2}, "▐▓▓▌"},
+		{Brick{X: 8, Y: 2, HP: 1}, "▐░░▌"},
+		{Brick{X: 12, Y: 2, Solid: true}, "▐╳╳▌"},
 	}
-	got = string([]rune{cellAt(rows, 8, 2), cellAt(rows, 9, 2), cellAt(rows, 10, 2), cellAt(rows, 11, 2)})
-	if got != "▐▓▓▌" {
-		t.Fatalf("damaged block = %q, want %q", got, "▐▓▓▌")
+	g := newTestGame()
+	for _, c := range cases {
+		g.bricks = append(g.bricks, c.brick)
 	}
+	rows := drawRows(g)
+	for _, c := range cases {
+		x := c.brick.X
+		got := string([]rune{cellAt(rows, x, 2), cellAt(rows, x+1, 2), cellAt(rows, x+2, 2), cellAt(rows, x+3, 2)})
+		if got != c.want {
+			t.Fatalf("block %+v = %q, want %q", c.brick, got, c.want)
+		}
+	}
+}
+
+func TestDrawLevelBannerAndLaunchHintOnlyBeforeLaunch(t *testing.T) {
+	g := NewGame(Config{Width: testWidth, Height: testHeight, Levels: Campaign})
+	g.level = 2
+	if snap := string(drawRowsFlat(g)); !strings.Contains(snap, "LEVEL 3") || !strings.Contains(snap, launchHint) {
+		t.Fatalf("banner or launch hint missing before launch:\n%s", snap)
+	}
+	g.Step(Input{Launch: true})
+	if snap := string(drawRowsFlat(g)); strings.Contains(snap, "LEVEL 3") || strings.Contains(snap, launchHint) {
+		t.Fatalf("banner and hint must disappear once the virus is launched")
+	}
+}
+
+func drawRowsFlat(g *Game) []rune {
+	var out []rune
+	for _, r := range drawRows(g) {
+		out = append(out, r...)
+		out = append(out, '\n')
+	}
+	return out
 }
 
 func TestDrawDrops(t *testing.T) {

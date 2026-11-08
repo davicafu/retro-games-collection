@@ -15,8 +15,6 @@ const (
 )
 
 const (
-	// DropOdds: one destroyed block in DropOdds drops a power-up.
-	DropOdds = 5
 	// DropSpeed is how fast drops fall, in sub-cells per tick.
 	DropSpeed = 30
 
@@ -34,7 +32,7 @@ type Drop struct {
 
 // maybeDrop rolls for a power-up under a destroyed block.
 func (g *Game) maybeDrop(b Brick) {
-	if g.rng == nil || g.rng.Intn(DropOdds) != 0 {
+	if g.rng == nil || g.rng.Intn(g.levels[g.level].DropOdds) != 0 {
 		return
 	}
 	kind := PowerUp(g.rng.Intn(int(powerUpCount)))

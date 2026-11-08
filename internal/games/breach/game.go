@@ -8,6 +8,11 @@ const SubCells = 100
 // Velocity is a speed in sub-cells per tick. Positive Y is down.
 type Velocity struct{ X, Y int }
 
+// scaled returns v at the given speed percentage.
+func (v Velocity) scaled(percent int) Velocity {
+	return Velocity{X: v.X * percent / 100, Y: v.Y * percent / 100}
+}
+
 // Exit angles off the injector, as magnitudes. Every component stays below
 // SubCells so the virus moves at most one cell per axis per tick.
 var (
@@ -31,17 +36,20 @@ type Input struct {
 }
 
 // Config builds a Game. Height counts the rows from the top wall down to the
-// injector row, which is the last one. Rand, when set, drives power-up drops.
+// injector row, which is the last one. Levels are played in order; Rand,
+// when set, drives power-up drops.
 type Config struct {
 	Width  int
 	Height int
-	Bricks []Brick
+	Levels []Level
 	Rand   Rand
 }
 
 // Game is the headless Breach simulation, advanced one tick at a time.
 type Game struct {
 	width, height int
+	levels        []Level
+	level         int // index into levels
 	bricks        []Brick
 	rng           Rand
 
@@ -63,12 +71,11 @@ func NewGame(cfg Config) *Game {
 	g := &Game{
 		width:  cfg.Width,
 		height: cfg.Height,
-		bricks: append([]Brick(nil), cfg.Bricks...),
+		levels: cfg.Levels,
 		rng:    cfg.Rand,
 		lives:  StartLives,
 	}
-	g.paddleX = (g.width - g.paddleWidth()) / 2
-	g.rideInjector()
+	g.loadLevel(0)
 	return g
 }
 
@@ -85,15 +92,46 @@ func (g *Game) Step(in Input) {
 		g.moveBall()
 	case in.Launch:
 		g.launched = true
-		g.vx, g.vy = Diagonal.X, -Diagonal.Y
+		v := Diagonal.scaled(g.speed())
+		g.vx, g.vy = v.X, -v.Y
 		g.moveBall()
 	default:
 		g.rideInjector()
 	}
-	if len(g.bricks) == 0 {
-		g.won = true
+	if g.cleared() {
+		g.nextLevel()
 	}
 }
+
+// loadLevel builds level i's wall with a fresh, centred injector.
+func (g *Game) loadLevel(i int) {
+	g.level = i
+	g.bricks = g.levels[i].Bricks()
+	g.drops = nil
+	g.wideTicks = 0
+	g.paddleX = (g.width - g.paddleWidth()) / 2
+	g.rideInjector()
+}
+
+func (g *Game) nextLevel() {
+	if g.level+1 >= len(g.levels) {
+		g.won = true
+		return
+	}
+	g.loadLevel(g.level + 1)
+}
+
+// cleared reports that no breakable block is left.
+func (g *Game) cleared() bool {
+	for _, b := range g.bricks {
+		if !b.Solid {
+			return false
+		}
+	}
+	return true
+}
+
+func (g *Game) speed() int { return g.levels[g.level].Speed }
 
 func (g *Game) movePaddle(move int) {
 	g.paddleX += move * PaddleStep
@@ -152,6 +190,7 @@ func (g *Game) bounceOffPaddle() {
 	case 3:
 		angle = Shallow
 	}
+	angle = angle.scaled(g.speed())
 	dir := sign(rel)
 	if dir == 0 {
 		dir = sign(g.vx)
@@ -176,6 +215,9 @@ func (g *Game) hitBrick(col, row int) bool {
 	for i, b := range g.bricks {
 		if !b.covers(col, row) {
 			continue
+		}
+		if b.Solid {
+			return true
 		}
 		g.score += PointsPerHit
 		g.bricks[i].HP--
@@ -221,6 +263,10 @@ func (g *Game) Height() int          { return g.height }
 
 // WideLeft is the number of ticks the Wide power-up still lasts.
 func (g *Game) WideLeft() int { return g.wideTicks }
+
+// Level is the 1-based number of the level being played.
+func (g *Game) Level() int      { return g.level + 1 }
+func (g *Game) LevelCount() int { return len(g.levels) }
 
 func (g *Game) Bricks() []Brick { return append([]Brick(nil), g.bricks...) }
 func (g *Game) Drops() []Drop   { return append([]Drop(nil), g.drops...) }

@@ -85,8 +85,8 @@ func TestBreachingShowsTheWinTitleWithScore(t *testing.T) {
 	if !open || m.Title() != "FIREWALL BREACHED" {
 		t.Fatalf("title = %q, want FIREWALL BREACHED", m.Title())
 	}
-	if content := strings.Join(m.Sections()[0].Lines, "\n"); !strings.Contains(content, "Score: 10") {
-		t.Fatalf("summary %q missing score", content)
+	if content := strings.Join(m.Sections()[0].Lines, "\n"); !strings.Contains(content, "Score: 10") || !strings.Contains(content, "Level: 1/1") {
+		t.Fatalf("summary %q missing score or level", content)
 	}
 }
 
@@ -124,7 +124,7 @@ func TestModuleRunRendersAndQuits(t *testing.T) {
 		t.Fatal("module did not quit")
 	}
 	snap := screen.Snapshot()
-	if !strings.Contains(snap, "Score: 0") || !strings.Contains(snap, "▐██▌") || !strings.Contains(snap, string(glyphVirus)) {
+	if !strings.Contains(snap, "Score: 0") || !strings.Contains(snap, "▐░░▌") || !strings.Contains(snap, string(glyphVirus)) {
 		t.Fatalf("expected HUD, firewall and virus on screen, got:\n%s", snap)
 	}
 }

@@ -11,8 +11,10 @@ import (
 const (
 	glyphVirus    = '●'
 	glyphInjector = '▀'
-	glyphHardened = '█'
-	glyphDamaged  = '▓'
+	glyphHP3      = '█'
+	glyphHP2      = '▓'
+	glyphHP1      = '░'
+	glyphSolid    = '╳'
 	glyphBlockL   = '▐'
 	glyphBlockR   = '▌'
 	glyphWide     = 'W'
@@ -47,15 +49,17 @@ func Draw(screen render.Screen, g *Game) {
 	sw, sh := screen.Size()
 	l := newLayout(sw, sh, width, height)
 
-	hud := fmt.Sprintf("Score: %d   %s", g.Score(), strings.Repeat(string(glyphLife), g.Lives()))
-	switch {
-	case !g.Launched():
-		hud += "   " + launchHint
-	case g.WideLeft() > 0:
+	hud := fmt.Sprintf("Level %d/%d   Score: %d   %s", g.Level(), g.LevelCount(), g.Score(), strings.Repeat(string(glyphLife), g.Lives()))
+	if g.WideLeft() > 0 {
 		hud += "   WIDE"
 	}
 	render.WriteText(screen, l.originX+1, l.originY, render.PadRight(hud, width))
 	render.DrawBox(screen, l.originX, l.originY+1, width, height)
+	// The banner goes first so game objects stay visible on top of it.
+	if !g.Launched() {
+		centred(screen, l, width, height-5, fmt.Sprintf("LEVEL %d", g.Level()))
+		centred(screen, l, width, height-4, launchHint)
+	}
 
 	for _, b := range g.Bricks() {
 		drawBrick(screen, l, b)
@@ -76,12 +80,17 @@ func Draw(screen render.Screen, g *Game) {
 	}
 }
 
-// drawBrick draws a block as ▐██▌ (hardened) or ▐▓▓▌ (one hit left), so
-// neighbouring blocks stay distinct.
+// drawBrick draws a block as ▐██▌, ▐▓▓▌ or ▐░░▌ for 3, 2 or 1 hits left,
+// and ▐╳╳▌ when indestructible; the edges keep neighbouring blocks distinct.
 func drawBrick(screen render.Screen, l layout, b Brick) {
-	fill := glyphDamaged
-	if b.HP > 1 {
-		fill = glyphHardened
+	fill := glyphHP1
+	switch {
+	case b.Solid:
+		fill = glyphSolid
+	case b.HP >= 3:
+		fill = glyphHP3
+	case b.HP == 2:
+		fill = glyphHP2
 	}
 	for i := 0; i < BrickWidth; i++ {
 		glyph := fill
@@ -98,4 +107,10 @@ func drawBrick(screen render.Screen, l layout, b Brick) {
 func set(screen render.Screen, l layout, col, row int, glyph rune) {
 	p := l.toScreen(col, row)
 	render.SetCell(screen, p.X, p.Y, glyph)
+}
+
+// centred writes text centred on a playfield row.
+func centred(screen render.Screen, l layout, width, row int, text string) {
+	p := l.toScreen((width-len([]rune(text)))/2, row)
+	render.WriteText(screen, p.X, p.Y, text)
 }

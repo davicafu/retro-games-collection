@@ -56,7 +56,10 @@ func (r round) OverTitle() string {
 }
 
 func (r round) Summary() []overlay.Section {
-	return []overlay.Section{overlay.Text(fmt.Sprintf("Score: %d", r.Score()))}
+	return []overlay.Section{overlay.Text(
+		fmt.Sprintf("Score: %d", r.Score()),
+		fmt.Sprintf("Level: %d/%d", r.Level(), r.LevelCount()),
+	)}
 }
 
 // Module wires Breach into the runtime with injected clock, screen, input and RNG.
@@ -76,7 +79,7 @@ func (m Module) Run(ctx context.Context) error {
 		return NewGame(Config{
 			Width:  playfieldWidth,
 			Height: playfieldHeight,
-			Bricks: Firewall(playfieldWidth),
+			Levels: Campaign,
 			Rand:   m.rng,
 		})
 	}

@@ -19,7 +19,7 @@ func (r *scriptedRand) Intn(n int) int {
 
 // breakBrick destroys a one-hit block at (8..11, 3) from below and returns the game.
 func breakBrick(rng Rand) *Game {
-	g := NewGame(Config{Width: testWidth, Height: testHeight, Bricks: []Brick{{X: 8, Y: 3, HP: 1}, farBrick}, Rand: rng})
+	g := newGameWith(rng, Brick{X: 8, Y: 3, HP: 1}, farBrick)
 	place(g, 9, 4, 0, -60)
 	g.Step(Input{})
 	return g
@@ -43,7 +43,7 @@ func TestNoDropWhenTheRollMissesOrWithoutRand(t *testing.T) {
 }
 
 func TestDamagedButStandingBlockDoesNotDrop(t *testing.T) {
-	g := NewGame(Config{Width: testWidth, Height: testHeight, Bricks: []Brick{{X: 8, Y: 3, HP: 2}}, Rand: &scriptedRand{}})
+	g := newGameWith(&scriptedRand{}, Brick{X: 8, Y: 3, HP: 2})
 	place(g, 9, 4, 0, -60)
 	g.Step(Input{})
 	if len(g.Drops()) != 0 {
