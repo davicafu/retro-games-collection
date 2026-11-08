@@ -11,6 +11,7 @@ import (
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/clock"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/input"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/render"
+	"github.com/davidbarreiro/cli-games-collection/internal/games/breach"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/drone"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/runner"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/snake"
@@ -72,6 +73,7 @@ func New() Model {
 			{Name: "Sokoban", Description: "Push boxes to their targets", Controls: "[arrows/WASD] move", starter: runSokobanGame},
 			{Name: "Runner", Description: "Jump, duck, keep running", Controls: "[↑/W/space] jump  [↓/S] duck", starter: runRunnerGame},
 			{Name: "Drone", Description: "Fly between the antennas", Controls: "[↑/W/space] thrust", starter: runDroneGame},
+			{Name: "Breach", Description: "Infect your way through the firewall", Controls: "[←→/AD] move  [↑/W/space] launch", starter: runBreachGame},
 		},
 		width:  80,
 		height: 24,
@@ -412,5 +414,14 @@ func runDroneGame(ctx context.Context, provider input.Provider, screen render.Sc
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	module := drone.NewModule(ticker, screen, provider, rng)
+	return module.Run(ctx)
+}
+
+func runBreachGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
+	ticker := clock.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	module := breach.NewModule(ticker, screen, provider, rng)
 	return module.Run(ctx)
 }

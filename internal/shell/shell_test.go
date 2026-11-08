@@ -93,8 +93,8 @@ func TestNew_CreatesMenuStateWithDefaults(t *testing.T) {
 	if m.state != stateMenu {
 		t.Fatalf("expected stateMenu, got %v", m.state)
 	}
-	if len(m.games) != 4 {
-		t.Fatalf("expected 4 games, got %d", len(m.games))
+	if len(m.games) != 5 {
+		t.Fatalf("expected 5 games, got %d", len(m.games))
 	}
 	if m.games[0].Name != "Snake" {
 		t.Fatalf("expected game name 'Snake', got %q", m.games[0].Name)
@@ -107,6 +107,9 @@ func TestNew_CreatesMenuStateWithDefaults(t *testing.T) {
 	}
 	if m.games[3].Name != "Drone" {
 		t.Fatalf("expected game name 'Drone', got %q", m.games[3].Name)
+	}
+	if m.games[4].Name != "Breach" {
+		t.Fatalf("expected game name 'Breach', got %q", m.games[4].Name)
 	}
 	if m.cursor != 0 {
 		t.Fatalf("expected cursor 0, got %d", m.cursor)
@@ -147,6 +150,17 @@ func TestNewWithGame_DroneSetsPlayingState(t *testing.T) {
 	}
 	if m.games[m.cursor].Name != "Drone" {
 		t.Fatalf("expected cursor on Drone, got %q", m.games[m.cursor].Name)
+	}
+	m.gameCtrl.cancel()
+}
+
+func TestNewWithGame_BreachSetsPlayingState(t *testing.T) {
+	m := NewWithGame("breach")
+	if m.state != statePlaying {
+		t.Fatalf("expected statePlaying, got %v", m.state)
+	}
+	if m.games[m.cursor].Name != "Breach" {
+		t.Fatalf("expected cursor on Breach, got %q", m.games[m.cursor].Name)
 	}
 	m.gameCtrl.cancel()
 }
@@ -559,6 +573,7 @@ func TestPlayingView_ShowsControlsOfTheRunningGame(t *testing.T) {
 		"Sokoban": {"[ESC] pause", "[q] quit", "[arrows/WASD] move"},
 		"Runner":  {"[ESC] pause", "[q] quit", "[↑/W/space] jump", "[↓/S] duck"},
 		"Drone":   {"[ESC] pause", "[q] quit", "[↑/W/space] thrust"},
+		"Breach":  {"[ESC] pause", "[q] quit", "[←→/AD] move", "[↑/W/space] launch"},
 	}
 	for name, want := range cases {
 		m := New()
