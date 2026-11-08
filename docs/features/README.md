@@ -26,6 +26,7 @@ One folder per feature, named `YYYY-MM-DD-<feature>`. This is the single home fo
 | 2026-05-12 | [sokoban-run-mode](2026-05-12-sokoban-run-mode/) | design, plan |
 | 2026-11-07 | [endless-runner](2026-11-07-endless-runner/) | feature doc: specs, tasks, evidence, log |
 | 2026-11-08 | [drone](2026-11-08-drone/) | feature doc: specs, tasks, evidence, log |
+| 2026-11-08 | [breach](2026-11-08-breach/) | feature doc: specs, tasks, evidence, log |
 
 ## Historical notes
 

@@ -1,0 +1,101 @@
+package breach
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/davidbarreiro/cli-games-collection/internal/engine/grid"
+	"github.com/davidbarreiro/cli-games-collection/internal/engine/render"
+)
+
+const (
+	glyphVirus    = '●'
+	glyphInjector = '▀'
+	glyphHardened = '█'
+	glyphDamaged  = '▓'
+	glyphBlockL   = '▐'
+	glyphBlockR   = '▌'
+	glyphWide     = 'W'
+	glyphLife     = '♥'
+
+	launchHint = "↑ to launch"
+)
+
+// layout places the frame (HUD + box) centred on the screen, so overlays,
+// which centre on the screen too, sit on top of the playfield.
+type layout struct {
+	originX int // left border column
+	originY int // HUD row; the box starts one row below
+}
+
+func newLayout(screenWidth, screenHeight, width, height int) layout {
+	frameHeight := 1 + height + 2 // HUD, box with its borders
+	return layout{
+		originX: max(0, (screenWidth-(width+2))/2),
+		originY: max(0, (screenHeight-frameHeight)/2),
+	}
+}
+
+// toScreen maps playfield column and row to screen coordinates.
+func (l layout) toScreen(col, row int) grid.Point {
+	return grid.Point{X: l.originX + 1 + col, Y: l.originY + 2 + row}
+}
+
+// Draw renders the HUD, firewall, drops, injector and virus.
+func Draw(screen render.Screen, g *Game) {
+	width, height := g.Width(), g.Height()
+	sw, sh := screen.Size()
+	l := newLayout(sw, sh, width, height)
+
+	hud := fmt.Sprintf("Score: %d   %s", g.Score(), strings.Repeat(string(glyphLife), g.Lives()))
+	switch {
+	case !g.Launched():
+		hud += "   " + launchHint
+	case g.WideLeft() > 0:
+		hud += "   WIDE"
+	}
+	render.WriteText(screen, l.originX+1, l.originY, render.PadRight(hud, width))
+	render.DrawBox(screen, l.originX, l.originY+1, width, height)
+
+	for _, b := range g.Bricks() {
+		drawBrick(screen, l, b)
+	}
+	for _, d := range g.Drops() {
+		glyph := glyphLife
+		if d.Kind == PowerUpWide {
+			glyph = glyphWide
+		}
+		set(screen, l, d.Col, d.Y/SubCells, glyph)
+	}
+	x, w := g.Paddle()
+	for col := x; col < x+w; col++ {
+		set(screen, l, col, height-1, glyphInjector)
+	}
+	if col, row := g.BallCell(); row < height {
+		set(screen, l, col, row, glyphVirus)
+	}
+}
+
+// drawBrick draws a block as ▐██▌ (hardened) or ▐▓▓▌ (one hit left), so
+// neighbouring blocks stay distinct.
+func drawBrick(screen render.Screen, l layout, b Brick) {
+	fill := glyphDamaged
+	if b.HP > 1 {
+		fill = glyphHardened
+	}
+	for i := 0; i < BrickWidth; i++ {
+		glyph := fill
+		switch i {
+		case 0:
+			glyph = glyphBlockL
+		case BrickWidth - 1:
+			glyph = glyphBlockR
+		}
+		set(screen, l, b.X+i, b.Y, glyph)
+	}
+}
+
+func set(screen render.Screen, l layout, col, row int, glyph rune) {
+	p := l.toScreen(col, row)
+	render.SetCell(screen, p.X, p.Y, glyph)
+}
