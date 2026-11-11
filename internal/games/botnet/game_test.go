@@ -339,21 +339,29 @@ func TestRealTimeSpeedsDoNotDependOnTheTickRate(t *testing.T) {
 	if PacketSpeed >= SubCells || ShotSpeed >= SubCells {
 		t.Fatalf("shots must move less than a cell per tick")
 	}
-	if got := (time.Duration(waveStepTicks(1)) * TickPeriod).Round(time.Millisecond); got != 500*time.Millisecond {
-		t.Fatalf("wave 1 formation steps every %v, want 500ms", got)
+	if got := (time.Duration(waveStepTicks(1)) * TickPeriod).Round(time.Millisecond); got != 600*time.Millisecond {
+		t.Fatalf("wave 1 formation steps every %v, want 600ms", got)
 	}
 }
+
+// ViableWaves is how many waves the autopilot must clear, and SafetyRows how
+// far above the server row the formation must stay while it does: every
+// wave must be clearable with room to spare.
+const (
+	ViableWaves = 10
+	SafetyRows  = 3
+)
 
 // TestAutopilotClearsWavesBeforeTheyLand plays the real formation: a server
 // that fires whenever a packet fired now would hit a scanner, and otherwise
 // heads for the nearest column (drilling through cover in its way), must
-// clear the first waves before the formation reaches it. Lives are topped
-// up: this checks that the formation's pace leaves time to clear it, not the
-// autopilot's dodging.
+// clear the first ViableWaves waves while the formation stays SafetyRows
+// above it. Lives are topped up: this checks that the formation's pace
+// leaves time to clear it, not the autopilot's dodging.
 func TestAutopilotClearsWavesBeforeTheyLand(t *testing.T) {
 	for seed := int64(1); seed <= 3; seed++ {
 		g := NewGame(Config{Width: testWidth, Height: testHeight, Rand: rand.New(rand.NewSource(seed))})
-		for tick := 0; tick < 200000 && g.Wave() <= 5 && !g.Over(); tick++ {
+		for tick := 0; tick < 400000 && g.Wave() <= ViableWaves && !g.Over(); tick++ {
 			g.lives = StartLives
 			x, w := g.Server()
 			target := nearestColumn(g, x+w/2)
@@ -367,8 +375,13 @@ func TestAutopilotClearsWavesBeforeTheyLand(t *testing.T) {
 			outcome := fireOutcome(g, move)
 			fire := outcome == hitScanner || (outcome == hitCover && move == 0)
 			g.Step(Input{Move: move, Fire: fire})
+			for _, s := range g.Scanners() {
+				if s.Row > serverRow-SafetyRows {
+					t.Fatalf("seed %d wave %d: scanner reached row %d, want at most %d", seed, g.Wave(), s.Row, serverRow-SafetyRows)
+				}
+			}
 		}
-		if g.Over() || g.Wave() <= 5 {
+		if g.Over() || g.Wave() <= ViableWaves {
 			t.Fatalf("seed %d: over = %v at wave %d with %d scanners left", seed, g.Over(), g.Wave(), len(g.Scanners()))
 		}
 	}

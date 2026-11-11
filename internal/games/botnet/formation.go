@@ -25,12 +25,12 @@ const (
 // Wave difficulty: each wave starts lower, steps faster and fires more,
 // up to these limits.
 const (
-	MaxFormationTop  = 4
-	MinWaveStepTicks = 12
-	MinFireOdds      = 15
-	MaxShotCap       = 5
+	MaxFormationTop  = 3
+	MinWaveStepTicks = 20
+	MinFireOdds      = 30
+	MaxShotCap       = 4
 	// MinStepTicks is the fastest the formation steps, with one scanner left.
-	MinStepTicks = 2
+	MinStepTicks = 6
 )
 
 // Scanner is one antivirus scanner covering columns X..X+ScannerWidth-1 of its row.
@@ -46,10 +46,10 @@ func (s Scanner) covers(col, row int) bool {
 func formationTop(wave int) int { return min(wave, MaxFormationTop) }
 
 // waveStepTicks is how often a full formation steps in this wave.
-func waveStepTicks(wave int) int { return max(MinWaveStepTicks, 30-3*(wave-1)) }
+func waveStepTicks(wave int) int { return max(MinWaveStepTicks, 36-2*(wave-1)) }
 
 // fireOdds is the 1-in-n chance per tick that a scanner fires.
-func fireOdds(wave int) int { return max(MinFireOdds, 60-8*(wave-1)) }
+func fireOdds(wave int) int { return max(MinFireOdds, 90-6*(wave-1)) }
 
 // shotCap is the most quarantine shots on screen at once.
 func shotCap(wave int) int { return min(MaxShotCap, 1+wave) }
@@ -57,9 +57,10 @@ func shotCap(wave int) int { return min(MaxShotCap, 1+wave) }
 func (g *Game) fireOdds() int { return fireOdds(g.wave) }
 func (g *Game) shotCap() int  { return shotCap(g.wave) }
 
-// stepInterval shrinks with the scanners left, so the formation speeds up.
+// stepInterval shrinks with the scanners left, from the wave's pace down to
+// MinStepTicks for the last one, so the formation speeds up.
 func (g *Game) stepInterval() int {
-	return max(MinStepTicks, waveStepTicks(g.wave)*len(g.scanners)/g.total)
+	return MinStepTicks + (waveStepTicks(g.wave)-MinStepTicks)*len(g.scanners)/g.total
 }
 
 // startWave builds a fresh formation; score, lives and cover carry over.
