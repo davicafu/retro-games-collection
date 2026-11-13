@@ -145,3 +145,62 @@ func TestBufferScreen_RowsIsolation(t *testing.T) {
 		t.Fatalf("expected original to be space after rows mutation, got %q", s.contents[1][1])
 	}
 }
+
+func TestBufferScreen_StyledSnapshotColoursRunsOfColouredCells(t *testing.T) {
+	s := NewBufferScreen(5, 2)
+	s.SetCell(1, 0, Cell{Rune: 'A', Color: ColorYellow})
+	s.SetCell(2, 0, Cell{Rune: 'B', Color: ColorYellow})
+	s.SetCell(3, 0, Cell{Rune: 'C', Color: ColorRed})
+	s.SetCell(0, 1, Cell{Rune: 'D'})
+	if got, want := s.StyledSnapshot(), " \x1b[93mAB\x1b[91mC\x1b[0m \nD    "; got != want {
+		t.Fatalf("styled snapshot = %q, want %q", got, want)
+	}
+	if got := s.Snapshot(); got != " ABC \nD    " {
+		t.Fatalf("plain snapshot = %q, want no colour codes", got)
+	}
+	if got := s.Colors()[0][3]; got != ColorRed {
+		t.Fatalf("colour at (3,0) = %v, want red", got)
+	}
+}
+
+func TestBufferScreen_ColourEndsAtTheRowEnd(t *testing.T) {
+	s := NewBufferScreen(2, 2)
+	s.SetCell(1, 0, Cell{Rune: 'A', Color: ColorCyan})
+	s.SetCell(0, 1, Cell{Rune: 'B', Color: ColorCyan})
+	if got, want := s.StyledSnapshot(), " \x1b[96mA\x1b[0m\n\x1b[96mB\x1b[0m "; got != want {
+		t.Fatalf("styled snapshot = %q, want %q", got, want)
+	}
+}
+
+func TestBufferScreen_OverwritingOrClearingResetsTheColour(t *testing.T) {
+	s := NewBufferScreen(3, 1)
+	s.SetCell(0, 0, Cell{Rune: 'A', Color: ColorGreen})
+	s.SetCell(0, 0, Cell{Rune: 'B'})
+	s.SetCell(1, 0, Cell{Rune: 'C', Color: ColorBlue})
+	s.Clear()
+	s.SetCell(2, 0, Cell{Rune: 'D'})
+	if got := s.StyledSnapshot(); got != "  D" {
+		t.Fatalf("styled snapshot = %q, want no colour codes", got)
+	}
+	s.SetCell(0, 0, Cell{Rune: 'E', Color: ColorMagenta})
+	s.SetCell(0, 0, Cell{Rune: 'F'})
+	if got := s.StyledSnapshot(); got != "F D" {
+		t.Fatalf("styled snapshot = %q, want %q", got, "F D")
+	}
+}
+
+func TestWriteColoredTextColoursEveryRune(t *testing.T) {
+	s := NewBufferScreen(4, 1)
+	WriteColoredText(s, 1, 0, "ab", ColorWhite)
+	if got, want := s.StyledSnapshot(), " \x1b[97mab\x1b[0m "; got != want {
+		t.Fatalf("styled snapshot = %q, want %q", got, want)
+	}
+}
+
+func TestBufferScreen_UnknownColourIsDrawnInTheDefault(t *testing.T) {
+	s := NewBufferScreen(2, 1)
+	s.SetCell(0, 0, Cell{Rune: 'A', Color: ColorWhite + 1})
+	if got, want := s.StyledSnapshot(), "A "; got != want {
+		t.Fatalf("styled snapshot = %q, want %q", got, want)
+	}
+}

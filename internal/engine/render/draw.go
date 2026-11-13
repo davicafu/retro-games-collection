@@ -31,6 +31,13 @@ func WriteText(screen Screen, x, y int, text string) {
 	}
 }
 
+// WriteColoredText writes a string like WriteText, every rune in color.
+func WriteColoredText(screen Screen, x, y int, text string, color Color) {
+	for i, r := range []rune(text) {
+		screen.SetCell(x+i, y, Cell{Rune: r, Color: color})
+	}
+}
+
 // PadRight pads a string with spaces to exactly n runes (one rune per cell).
 // Truncates if the string is longer than n.
 func PadRight(s string, n int) string {

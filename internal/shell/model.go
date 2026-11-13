@@ -355,7 +355,8 @@ func (m Model) playingView() string {
 	return m.frame + "\n" + overlay
 }
 
-// frameBroadcaster wraps BufferScreen and sends snapshots after each Present.
+// frameBroadcaster wraps BufferScreen and sends snapshots, with their
+// colours, after each Present.
 type frameBroadcaster struct {
 	*render.BufferScreen
 	frameCh chan<- string
@@ -363,7 +364,7 @@ type frameBroadcaster struct {
 
 func (f *frameBroadcaster) Present() error {
 	select {
-	case f.frameCh <- f.Snapshot():
+	case f.frameCh <- f.StyledSnapshot():
 	default:
 	}
 	return nil

@@ -541,6 +541,20 @@ func TestFrameBroadcaster_PresentSendsSnapshot(t *testing.T) {
 	}
 }
 
+func TestFrameBroadcaster_SendsColours(t *testing.T) {
+	ch := make(chan string, 1)
+	bs := render.NewBufferScreen(4, 1)
+	fb := &frameBroadcaster{BufferScreen: bs, frameCh: ch}
+
+	bs.SetCell(1, 0, render.Cell{Rune: 'X', Color: render.ColorYellow})
+	if err := fb.Present(); err != nil {
+		t.Fatalf("Present returned error: %v", err)
+	}
+	if frame := <-ch; !strings.Contains(frame, "\x1b[93mX\x1b[0m") {
+		t.Fatalf("expected the yellow X with its colour codes, got %q", frame)
+	}
+}
+
 func TestFrameBroadcaster_NonBlockingWhenFull(t *testing.T) {
 	ch := make(chan string, 1)
 	bs := render.NewBufferScreen(10, 2)
