@@ -93,8 +93,8 @@ func TestNew_CreatesMenuStateWithDefaults(t *testing.T) {
 	if m.state != stateMenu {
 		t.Fatalf("expected stateMenu, got %v", m.state)
 	}
-	if len(m.games) != 7 {
-		t.Fatalf("expected 7 games, got %d", len(m.games))
+	if len(m.games) != 8 {
+		t.Fatalf("expected 8 games, got %d", len(m.games))
 	}
 	if m.games[0].Name != "Snake" {
 		t.Fatalf("expected game name 'Snake', got %q", m.games[0].Name)
@@ -116,6 +116,9 @@ func TestNew_CreatesMenuStateWithDefaults(t *testing.T) {
 	}
 	if m.games[6].Name != "Leak" {
 		t.Fatalf("expected game name 'Leak', got %q", m.games[6].Name)
+	}
+	if m.games[7].Name != "Packet" {
+		t.Fatalf("expected game name 'Packet', got %q", m.games[7].Name)
 	}
 	if m.cursor != 0 {
 		t.Fatalf("expected cursor 0, got %d", m.cursor)
@@ -189,6 +192,17 @@ func TestNewWithGame_LeakSetsPlayingState(t *testing.T) {
 	}
 	if m.games[m.cursor].Name != "Leak" {
 		t.Fatalf("expected cursor on Leak, got %q", m.games[m.cursor].Name)
+	}
+	m.gameCtrl.cancel()
+}
+
+func TestNewWithGame_PacketSetsPlayingState(t *testing.T) {
+	m := NewWithGame("packet")
+	if m.state != statePlaying {
+		t.Fatalf("expected statePlaying, got %v", m.state)
+	}
+	if m.games[m.cursor].Name != "Packet" {
+		t.Fatalf("expected cursor on Packet, got %q", m.games[m.cursor].Name)
 	}
 	m.gameCtrl.cancel()
 }
@@ -644,6 +658,7 @@ func TestPlayingView_ShowsControlsOfTheRunningGame(t *testing.T) {
 		"Breach":  {"[ESC] pause", "[q] quit", "[←→/AD] move", "[↑/W/space] launch"},
 		"Botnet":  {"[ESC] pause", "[q] quit", "[←→/AD] move", "[↑/W/space] fire"},
 		"Leak":    {"[ESC] pause", "[q] quit", "[arrows/WASD] move"},
+		"Packet":  {"[ESC] pause", "[q] quit", "[↑↓/WS] switch link"},
 	}
 	for name, want := range cases {
 		m := New()

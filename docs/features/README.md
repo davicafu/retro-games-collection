@@ -29,6 +29,7 @@ One folder per feature, named `YYYY-MM-DD-<feature>`. This is the single home fo
 | 2026-11-08 | [breach](2026-11-08-breach/) | feature doc: specs, tasks, evidence, log |
 | 2026-11-08 | [botnet](2026-11-08-botnet/) | feature doc: specs, tasks, evidence, log |
 | 2026-11-11 | [leak](2026-11-11-leak/) | feature doc: specs, tasks, evidence, log |
+| 2026-11-13 | [packet](2026-11-13-packet/) | feature doc: specs, tasks, evidence, log |
 
 ## Historical notes
 
