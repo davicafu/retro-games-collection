@@ -20,7 +20,7 @@ const (
 	// scroll.Unit, so the world scrolls at most one cell per tick and no
 	// firewall tunnels through the packet.
 	BaseSpeed     = 25 // 15 cells/s
-	MaxSpeed      = 66 // 39.6 cells/s
+	MaxSpeed      = 96 // 57.6 cells/s
 	SpeedStep     = 3
 	SpeedDistance = 60 // cells between speed steps
 

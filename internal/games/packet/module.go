@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	playfieldWidth = 64
+	playfieldWidth = 44
 	playerColumn   = 6
 	startLink      = 1
 )

@@ -118,8 +118,8 @@ func TestRealTimeSpeedsDoNotDependOnTheTickRate(t *testing.T) {
 	if got := cellsPerSecond(BaseSpeed); got != 15 {
 		t.Fatalf("start speed %.1f cells/s, want 15", got)
 	}
-	if got := cellsPerSecond(MaxSpeed); got < 39 || got > 40 {
-		t.Fatalf("top speed %.1f cells/s, want about 40", got)
+	if got := cellsPerSecond(MaxSpeed); got < 57 || got > 58 {
+		t.Fatalf("top speed %.1f cells/s, want about 57.6", got)
 	}
 	if got := (time.Duration(ReactTicks) * TickPeriod).Round(time.Millisecond); got != 300*time.Millisecond {
 		t.Fatalf("reaction window %v, want 300ms", got)
