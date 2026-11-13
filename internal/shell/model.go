@@ -14,6 +14,7 @@ import (
 	"github.com/davidbarreiro/cli-games-collection/internal/games/botnet"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/breach"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/drone"
+	"github.com/davidbarreiro/cli-games-collection/internal/games/leak"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/runner"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/snake"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/sokoban"
@@ -76,6 +77,7 @@ func New() Model {
 			{Name: "Drone", Description: "Fly between the antennas", Controls: "[↑/W/space] thrust", starter: runDroneGame},
 			{Name: "Breach", Description: "Infect your way through the firewall", Controls: "[←→/AD] move  [↑/W/space] launch", starter: runBreachGame},
 			{Name: "Botnet", Description: "Fire back at the antivirus waves", Controls: "[←→/AD] move  [↑/W/space] fire", starter: runBotnetGame},
+			{Name: "Leak", Description: "Leak memory, dodge the collectors", Controls: "[arrows/WASD] move", starter: runLeakGame},
 		},
 		width:  80,
 		height: 24,
@@ -432,5 +434,14 @@ func runBotnetGame(ctx context.Context, provider input.Provider, screen render.S
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	module := botnet.NewModule(ticker, screen, provider, rng)
+	return module.Run(ctx)
+}
+
+func runLeakGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
+	ticker := clock.NewTicker(leak.TickPeriod)
+	defer ticker.Stop()
+
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	module := leak.NewModule(ticker, screen, provider, rng)
 	return module.Run(ctx)
 }
