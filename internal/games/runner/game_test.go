@@ -40,14 +40,38 @@ func TestJumpFollowsHeightTableThenLands(t *testing.T) {
 	}
 }
 
-func TestJumpWhileAirborneIsIgnored(t *testing.T) {
+func TestDoubleJumpLiftsAgainFromMidAirOnce(t *testing.T) {
 	g := newTestGame()
 
-	got := stepHeights(g, ActionJump, ActionNone, ActionJump, ActionNone)
+	got := stepHeights(g, append([]Action{ActionJump, ActionNone, ActionJump, ActionNone, ActionJump}, repeat(ActionNone, 8)...)...)
 
-	want := []int{1, 2, 3, 4}
+	// From height 2 the second jump rises DoubleJumpLift more, holds and
+	// falls; the third press is ignored.
+	want := []int{1, 2, 3, 4, 5, 5, 5, 4, 3, 2, 1, 0, 0}
 	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("heights = %v, want %v (mid-air jump must not restart the jump)", got, want)
+		t.Fatalf("heights = %v, want %v", got, want)
+	}
+}
+
+func TestDoubleJumpNeverRisesAboveTheSky(t *testing.T) {
+	g := newTestGame()
+	got := stepHeights(g, append([]Action{ActionJump, ActionNone, ActionNone, ActionNone, ActionJump}, repeat(ActionNone, 12)...)...)
+	for _, h := range got {
+		if h > MaxJumpHeight {
+			t.Fatalf("heights %v rise above %d", got, MaxJumpHeight)
+		}
+	}
+	if got[len(got)-1] != 0 {
+		t.Fatalf("heights %v, want a landing", got)
+	}
+}
+
+func TestLandingAllowsANewDoubleJump(t *testing.T) {
+	g := newTestGame()
+	stepHeights(g, append([]Action{ActionJump, ActionNone, ActionJump}, repeat(ActionNone, 12)...)...)
+	got := stepHeights(g, ActionJump, ActionJump, ActionNone)
+	if want := []int{1, 2, 3}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("heights after landing = %v, want %v (a fresh double jump)", got, want)
 	}
 }
 
@@ -154,17 +178,17 @@ func TestSpeedScalesWithDistanceAndCaps(t *testing.T) {
 		t.Fatalf("initial speed = %d, want %d", g.Speed(), BaseSpeed)
 	}
 
-	for g.Score() < 39 {
+	for g.Score() < SpeedDistance-1 {
 		g.Step(ActionNone)
 	}
 	if g.Speed() != BaseSpeed {
-		t.Fatalf("speed at distance 39 = %d, want %d", g.Speed(), BaseSpeed)
+		t.Fatalf("speed at distance %d = %d, want %d", SpeedDistance-1, g.Speed(), BaseSpeed)
 	}
-	for g.Score() < 40 {
+	for g.Score() < SpeedDistance {
 		g.Step(ActionNone)
 	}
 	if g.Speed() != BaseSpeed+SpeedStep {
-		t.Fatalf("speed at distance 40 = %d, want %d (speed rises every 40 cells)", g.Speed(), BaseSpeed+SpeedStep)
+		t.Fatalf("speed at distance %d = %d, want %d", SpeedDistance, g.Speed(), BaseSpeed+SpeedStep)
 	}
 
 	for g.Score() < 2000 {

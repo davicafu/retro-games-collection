@@ -8,8 +8,8 @@ import (
 
 const (
 	// skyHeight is the number of playable rows above the ground: the highest
-	// jump (4) plus the player's head.
-	skyHeight = 6
+	// double jump plus the player's body and head.
+	skyHeight = MaxJumpHeight + 2
 
 	glyphHead       = '●'
 	glyphBody       = '█'
