@@ -13,6 +13,7 @@ import (
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/render"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/botnet"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/breach"
+	"github.com/davidbarreiro/cli-games-collection/internal/games/debris"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/drone"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/leak"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/packet"
@@ -80,6 +81,7 @@ func New() Model {
 			{Name: "Botnet", Description: "Fire back at the antivirus waves", Controls: "[←→/AD] move  [↑/W/space] fire", starter: runBotnetGame},
 			{Name: "Leak", Description: "Leak memory, dodge the collectors", Controls: "[arrows/WASD] move", starter: runLeakGame},
 			{Name: "Packet", Description: "Switch links, dodge the firewalls", Controls: "[↑↓/WS] switch link", starter: runPacketGame},
+			{Name: "Debris", Description: "Clear the orbit of space debris", Controls: "[←→/AD] turn  [↑/W] thrust  [space] fire", starter: runDebrisGame},
 		},
 		width:  80,
 		height: 24,
@@ -454,5 +456,14 @@ func runPacketGame(ctx context.Context, provider input.Provider, screen render.S
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	module := packet.NewModule(ticker, screen, provider, rng)
+	return module.Run(ctx)
+}
+
+func runDebrisGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
+	ticker := clock.NewTicker(debris.TickPeriod)
+	defer ticker.Stop()
+
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	module := debris.NewModule(ticker, screen, provider, rng)
 	return module.Run(ctx)
 }

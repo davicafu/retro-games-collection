@@ -151,6 +151,7 @@ go run . play breach
 go run . play botnet
 go run . play leak
 go run . play packet
+go run . play debris
 ```
 
 Game names are case-insensitive. An unknown name opens the launcher menu.
