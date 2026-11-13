@@ -37,7 +37,11 @@ const (
 
 // gameEntry describes a playable game.
 type gameEntry struct {
-	Name        string
+	Name string
+	// Like names the classic the game is inspired by, shown next to its
+	// name so the menu says what each game plays like; empty when the name
+	// already says it.
+	Like        string
 	Description string
 	Controls    string // game-specific keys shown under the frame while playing
 	starter     func(ctx context.Context, input input.Provider, screen render.Screen, width, height int) error
@@ -75,13 +79,13 @@ func New() Model {
 		games: []gameEntry{
 			{Name: "Snake", Description: "Navigate, eat, survive", Controls: "[arrows/WASD] move", starter: runSnakeGame},
 			{Name: "Sokoban", Description: "Push boxes to their targets", Controls: "[arrows/WASD] move", starter: runSokobanGame},
-			{Name: "Runner", Description: "Jump, duck, keep running", Controls: "[↑/W/space] jump  [↓/S] duck", starter: runRunnerGame},
-			{Name: "Drone", Description: "Fly between the antennas", Controls: "[↑/W/space] thrust", starter: runDroneGame},
-			{Name: "Breach", Description: "Infect your way through the firewall", Controls: "[←→/AD] move  [↑/W/space] launch", starter: runBreachGame},
-			{Name: "Botnet", Description: "Fire back at the antivirus waves", Controls: "[←→/AD] move  [↑/W/space] fire", starter: runBotnetGame},
-			{Name: "Leak", Description: "Leak memory, dodge the collectors", Controls: "[arrows/WASD] move", starter: runLeakGame},
-			{Name: "Packet", Description: "Switch links, dodge the firewalls", Controls: "[↑↓/WS] switch link", starter: runPacketGame},
-			{Name: "Debris", Description: "Clear the orbit of space debris", Controls: "[←→/AD] turn  [↑/W] thrust  [space] fire", starter: runDebrisGame},
+			{Name: "Runner", Like: "Chrome Dino", Description: "Jump, duck, keep running", Controls: "[↑/W/space] jump  [↓/S] duck", starter: runRunnerGame},
+			{Name: "Drone", Like: "Flappy Bird", Description: "Fly between the antennas", Controls: "[↑/W/space] thrust", starter: runDroneGame},
+			{Name: "Breach", Like: "Breakout", Description: "Infect your way through the firewall", Controls: "[←→/AD] move  [↑/W/space] launch", starter: runBreachGame},
+			{Name: "Botnet", Like: "Space Invaders", Description: "Fire back at the antivirus waves", Controls: "[←→/AD] move  [↑/W/space] fire", starter: runBotnetGame},
+			{Name: "Leak", Like: "Pac-Man", Description: "Leak memory, dodge the collectors", Controls: "[arrows/WASD] move", starter: runLeakGame},
+			{Name: "Packet", Like: "Subway Surfers", Description: "Switch links, dodge the firewalls", Controls: "[↑↓/WS] switch link", starter: runPacketGame},
+			{Name: "Debris", Like: "Asteroids", Description: "Clear the orbit of space debris", Controls: "[←→/AD] turn  [↑/W] thrust  [space] fire", starter: runDebrisGame},
 		},
 		width:  80,
 		height: 24,
@@ -329,7 +333,11 @@ func (m Model) menuView() string {
 		}
 
 		// "  │ ▸ Snake                          │" (cols 0-1 margen, 2│, 3 , 4-39 texto, 40 , 41│)
-		nameText := lipgloss.NewStyle().Width(textArea).Render(cur + nameStyle.Render(g.Name))
+		label := nameStyle.Render(g.Name)
+		if g.Like != "" {
+			label += lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(" · " + g.Like + "-like")
+		}
+		nameText := lipgloss.NewStyle().Width(textArea).Render(cur + label)
 		boxLine("  │ " + nameText + " │")
 	}
 

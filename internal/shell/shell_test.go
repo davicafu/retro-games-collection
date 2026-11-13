@@ -221,6 +221,26 @@ func TestNewWithGame_DebrisSetsPlayingState(t *testing.T) {
 	m.gameCtrl.cancel()
 }
 
+func TestMenuViewNamesTheGameEachOneIsLike(t *testing.T) {
+	view := New().menuView()
+	for _, want := range []string{
+		"Runner · Chrome Dino-like",
+		"Drone · Flappy Bird-like",
+		"Breach · Breakout-like",
+		"Botnet · Space Invaders-like",
+		"Leak · Pac-Man-like",
+		"Packet · Subway Surfers-like",
+		"Debris · Asteroids-like",
+	} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("menu missing %q:\n%s", want, view)
+		}
+	}
+	if strings.Contains(view, "Snake ·") || strings.Contains(view, "Sokoban ·") {
+		t.Fatalf("Snake and Sokoban already name their genre and need no reference")
+	}
+}
+
 func TestMenuViewFitsDefaultTerminalWithAllGames(t *testing.T) {
 	m := New()
 	if lines := strings.Count(m.menuView(), "\n") + 1; lines > m.height {
