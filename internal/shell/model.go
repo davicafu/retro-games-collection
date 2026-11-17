@@ -16,6 +16,7 @@ import (
 	"github.com/davidbarreiro/cli-games-collection/internal/games/debris"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/defrag"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/drone"
+	"github.com/davidbarreiro/cli-games-collection/internal/games/hack"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/leak"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/packet"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/rack"
@@ -46,7 +47,10 @@ type gameEntry struct {
 	Like        string
 	Description string
 	Controls    string // game-specific keys shown under the frame while playing
-	starter     func(ctx context.Context, input input.Provider, screen render.Screen, width, height int) error
+	// Typing marks a game that takes typed text: q is a letter there, so
+	// its hint offers ctrl+c to quit instead.
+	Typing  bool
+	starter func(ctx context.Context, input input.Provider, screen render.Screen, width, height int) error
 }
 
 // Model is the root Bubble Tea model that orchestrates the entire app.
@@ -90,6 +94,7 @@ func New() Model {
 			{Name: "Debris", Like: "Asteroids", Description: "Clear the orbit of space debris", Controls: "[←→/AD] turn  [↑/W] thrust  [↓/S] brake  [space] fire", starter: runDebrisGame},
 			{Name: "Rack", Like: "Donkey Kong", Description: "Climb the data center, grab the disks", Controls: "[arrows/WASD] walk/climb  [space] jump  [f] throw", starter: runRackGame},
 			{Name: "Defrag", Like: "Tetris", Description: "Fit the fragments, free the sectors", Controls: "[←→↓/ASD] move  [↑/W] rotate  [space] slam  [g] guides", starter: runDefragGame},
+			{Name: "Hack", Description: "Crack the network, read its secret", Controls: "[enter] run  [↑↓] history  [arrows/space] breach", Typing: true, starter: runHackGame},
 		},
 		width:  80,
 		height: 24,
@@ -361,7 +366,7 @@ func (m Model) playingView() string {
 
 	overlay := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
-		Render("  [ESC] pause  [q] quit  " + m.games[m.cursor].Controls)
+		Render("  [ESC] pause  " + quitKey(m.games[m.cursor]) + "  " + m.games[m.cursor].Controls)
 
 	return m.frame + "\n" + overlay
 }
@@ -488,5 +493,22 @@ func runDefragGame(ctx context.Context, provider input.Provider, screen render.S
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	module := defrag.NewModule(ticker, screen, provider, rng)
+	return module.Run(ctx)
+}
+
+// quitKey is the hint for leaving a game: q, or ctrl+c where q is text.
+func quitKey(g gameEntry) string {
+	if g.Typing {
+		return "[ctrl+c] quit"
+	}
+	return "[q] quit"
+}
+
+func runHackGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
+	ticker := clock.NewTicker(hack.TickPeriod)
+	defer ticker.Stop()
+
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	module := hack.NewModule(ticker, screen, provider, rng)
 	return module.Run(ctx)
 }

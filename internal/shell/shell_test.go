@@ -93,8 +93,8 @@ func TestNew_CreatesMenuStateWithDefaults(t *testing.T) {
 	if m.state != stateMenu {
 		t.Fatalf("expected stateMenu, got %v", m.state)
 	}
-	if len(m.games) != 11 {
-		t.Fatalf("expected 11 games, got %d", len(m.games))
+	if len(m.games) != 12 {
+		t.Fatalf("expected 12 games, got %d", len(m.games))
 	}
 	if m.games[0].Name != "Snake" {
 		t.Fatalf("expected game name 'Snake', got %q", m.games[0].Name)
@@ -128,6 +128,9 @@ func TestNew_CreatesMenuStateWithDefaults(t *testing.T) {
 	}
 	if m.games[10].Name != "Defrag" {
 		t.Fatalf("expected game name 'Defrag', got %q", m.games[10].Name)
+	}
+	if m.games[11].Name != "Hack" {
+		t.Fatalf("expected game name 'Hack', got %q", m.games[11].Name)
 	}
 	if m.cursor != 0 {
 		t.Fatalf("expected cursor 0, got %d", m.cursor)
@@ -249,6 +252,17 @@ func TestNewWithGame_DefragSetsPlayingState(t *testing.T) {
 	m.gameCtrl.cancel()
 }
 
+func TestNewWithGame_HackSetsPlayingState(t *testing.T) {
+	m := NewWithGame("hack")
+	if m.state != statePlaying {
+		t.Fatalf("expected statePlaying, got %v", m.state)
+	}
+	if m.games[m.cursor].Name != "Hack" {
+		t.Fatalf("expected cursor on Hack, got %q", m.games[m.cursor].Name)
+	}
+	m.gameCtrl.cancel()
+}
+
 func TestMenuViewNamesTheGameEachOneIsLike(t *testing.T) {
 	view := New().menuView()
 	for _, want := range []string{
@@ -266,8 +280,8 @@ func TestMenuViewNamesTheGameEachOneIsLike(t *testing.T) {
 			t.Fatalf("menu missing %q:\n%s", want, view)
 		}
 	}
-	if strings.Contains(view, "Snake ·") || strings.Contains(view, "Sokoban ·") {
-		t.Fatalf("Snake and Sokoban already name their genre and need no reference")
+	if strings.Contains(view, "Snake ·") || strings.Contains(view, "Sokoban ·") || strings.Contains(view, "Hack ·") {
+		t.Fatalf("Snake and Sokoban already name their genre, and Hack is original: they need no reference")
 	}
 }
 
@@ -774,7 +788,7 @@ func TestPlayingView_ShowsFrameAndOverlay(t *testing.T) {
 
 func TestEveryGamesControlsHintFitsTheTerminal(t *testing.T) {
 	for _, g := range New().games {
-		if line := "  [ESC] pause  [q] quit  " + g.Controls; len([]rune(line)) > 80 {
+		if line := "  [ESC] pause  " + quitKey(g) + "  " + g.Controls; len([]rune(line)) > 80 {
 			t.Fatalf("%s controls hint is %d columns, wider than 80: %q", g.Name, len([]rune(line)), line)
 		}
 	}
@@ -793,6 +807,7 @@ func TestPlayingView_ShowsControlsOfTheRunningGame(t *testing.T) {
 		"Debris":  {"[ESC] pause", "[q] quit", "[←→/AD] turn", "[↑/W] thrust", "[↓/S] brake", "[space] fire"},
 		"Rack":    {"[ESC] pause", "[q] quit", "[arrows/WASD] walk/climb", "[space] jump", "[f] throw"},
 		"Defrag":  {"[ESC] pause", "[q] quit", "[←→↓/ASD] move", "[↑/W] rotate", "[space] slam", "[g] guides"},
+		"Hack":    {"[ESC] pause", "[ctrl+c] quit", "[enter] run", "[↑↓] history", "[arrows/space] breach"},
 	}
 	for name, want := range cases {
 		m := New()
@@ -809,6 +824,9 @@ func TestPlayingView_ShowsControlsOfTheRunningGame(t *testing.T) {
 			if !strings.Contains(view, hint) {
 				t.Fatalf("%s: view missing %q, got %q", name, hint, view)
 			}
+		}
+		if name == "Hack" && strings.Contains(view, "[q] quit") {
+			t.Fatalf("Hack takes q as text, so its hint must not offer [q] quit, got %q", view)
 		}
 		if name == "Runner" && strings.Contains(view, "move") {
 			t.Fatalf("Runner hint must not say move, got %q", view)

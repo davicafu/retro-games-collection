@@ -33,6 +33,7 @@ One folder per feature, named `YYYY-MM-DD-<feature>`. This is the single home fo
 | 2026-11-13 | [debris](2026-11-13-debris/) | feature doc: specs, tasks, evidence, log |
 | 2026-11-14 | [rack](2026-11-14-rack/) | feature doc: specs, tasks, evidence, log |
 | 2026-11-16 | [defrag](2026-11-16-defrag/) | feature doc: specs, tasks, evidence, log |
+| 2026-11-16 | [hack](2026-11-16-hack/) | feature doc: specs, tasks, evidence, log |
 
 ## Historical notes
 

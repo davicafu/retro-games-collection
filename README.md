@@ -154,6 +154,7 @@ go run . play packet
 go run . play debris
 go run . play rack
 go run . play defrag
+go run . play hack
 ```
 
 Game names are case-insensitive. An unknown name opens the launcher menu.
