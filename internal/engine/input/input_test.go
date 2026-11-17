@@ -31,3 +31,35 @@ func TestStaticProviderSupportsGenericGameplayActions(t *testing.T) {
 		t.Fatalf("expected generic gameplay actions to remain intact, got %v", frame.Actions)
 	}
 }
+
+func TestRuneActionIsWhatATypedCharacterStandsFor(t *testing.T) {
+	cases := map[rune]Action{
+		'w': ActionUp, 'W': ActionUp, 'a': ActionLeft, 'A': ActionLeft,
+		's': ActionDown, 'S': ActionDown, 'd': ActionRight, 'D': ActionRight,
+		'q': ActionQuit, 'Q': ActionQuit, ' ': ActionSelect,
+		'p': ActionPause, 'P': ActionPause, 'u': ActionUndo, 'U': ActionUndo,
+		'?': ActionHelp, 'h': ActionHelp, 'H': ActionHelp,
+		'f': ActionFire, 'F': ActionFire, 'g': ActionGuides, 'G': ActionGuides,
+		'x': "", '1': "", '/': "",
+	}
+	for r, want := range cases {
+		if got := RuneAction(r); got != want {
+			t.Fatalf("RuneAction(%q) = %q, want %q", r, got, want)
+		}
+	}
+}
+
+func TestWithoutTypingDropsOneActionPerTypedCharacter(t *testing.T) {
+	frame := FrameInput{Actions: []Action{ActionQuit, ActionUp, ActionSelect, ActionQuit}, Text: []rune{'q', 'x', ' '}}
+	got := WithoutTyping(frame)
+	want := []Action{ActionUp, ActionQuit}
+	if len(got.Actions) != len(want) || got.Actions[0] != want[0] || got.Actions[1] != want[1] {
+		t.Fatalf("actions = %v, want %v: an arrow and a quit not typed stay", got.Actions, want)
+	}
+	if string(got.Text) != "qx " {
+		t.Fatalf("text = %q, want it kept", string(got.Text))
+	}
+	if len(frame.Actions) != 4 {
+		t.Fatalf("the original frame must not change: %v", frame.Actions)
+	}
+}

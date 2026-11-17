@@ -189,26 +189,19 @@ func (m Model) updatePlaying(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Rune-based keys
-	switch msg.String() {
-	case "w", "W":
-		m.chInput.Send(input.ActionUp)
-	case "a", "A":
-		m.chInput.Send(input.ActionLeft)
-	case "s", "S":
-		m.chInput.Send(input.ActionDown)
-	case "d", "D":
-		m.chInput.Send(input.ActionRight)
-	case "q", "Q":
-		m.chInput.Send(input.ActionQuit)
-	case " ":
-		m.chInput.Send(input.ActionSelect)
-	case "p", "P":
-		m.chInput.Send(input.ActionPause)
-	case "u", "U":
-		m.chInput.Send(input.ActionUndo)
-	case "?", "h", "H":
-		m.chInput.Send(input.ActionHelp)
+	// Typed characters: each arrives as text and as the action it stands
+	// for (input.RuneAction), so games keep WASD, Q, P and the rest.
+	switch {
+	case msg.Type == tea.KeyBackspace:
+		m.chInput.Send(input.ActionBackspace)
+	case (msg.Type == tea.KeyRunes || msg.Type == tea.KeySpace) && !msg.Alt:
+		runes := msg.Runes
+		if msg.Type == tea.KeySpace && len(runes) == 0 {
+			runes = []rune{' '}
+		}
+		for _, r := range runes {
+			m.chInput.Type(r)
+		}
 	}
 
 	return m, nil

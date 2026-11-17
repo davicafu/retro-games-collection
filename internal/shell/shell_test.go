@@ -486,6 +486,36 @@ func TestUpdate_PlayingWASD(t *testing.T) {
 	}
 }
 
+func TestUpdate_PlayingFSendsFire(t *testing.T) {
+	m := New()
+	m.state = statePlaying
+	m.chInput = NewChannelInput(4)
+
+	for _, r := range []rune{'f', 'F'} {
+		updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		m = updated.(Model)
+	}
+	fi := m.chInput.Poll()
+	if len(fi.Actions) != 2 || fi.Actions[0] != input.ActionFire || fi.Actions[1] != input.ActionFire {
+		t.Fatalf("expected ActionFire for 'f' and 'F', got %v", fi.Actions)
+	}
+}
+
+func TestUpdate_PlayingGSendsGuides(t *testing.T) {
+	m := New()
+	m.state = statePlaying
+	m.chInput = NewChannelInput(4)
+
+	for _, r := range []rune{'g', 'G'} {
+		updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		m = updated.(Model)
+	}
+	fi := m.chInput.Poll()
+	if len(fi.Actions) != 2 || fi.Actions[0] != input.ActionGuides || fi.Actions[1] != input.ActionGuides {
+		t.Fatalf("expected ActionGuides for 'g' and 'G', got %v", fi.Actions)
+	}
+}
+
 func TestUpdate_PlayingWASDUpper(t *testing.T) {
 	m := New()
 	m.state = statePlaying
@@ -496,6 +526,35 @@ func TestUpdate_PlayingWASDUpper(t *testing.T) {
 	fi := m.chInput.Poll()
 	if len(fi.Actions) != 1 || fi.Actions[0] != input.ActionUp {
 		t.Fatalf("expected ActionUp for 'W', got %v", fi.Actions)
+	}
+}
+
+func TestUpdate_PlayingSendsTypedTextAlongsideActions(t *testing.T) {
+	m := New()
+	m.state = statePlaying
+	m.chInput = NewChannelInput(8)
+
+	for _, msg := range []tea.KeyMsg{
+		{Type: tea.KeyRunes, Runes: []rune{'l', 's'}},
+		{Type: tea.KeySpace, Runes: []rune{' '}},
+		{Type: tea.KeyRunes, Runes: []rune{'q'}},
+		{Type: tea.KeyBackspace},
+	} {
+		updated, _ := m.Update(msg)
+		m = updated.(Model)
+	}
+	fi := m.chInput.Poll()
+	if string(fi.Text) != "ls q" {
+		t.Fatalf("text = %q, want %q", string(fi.Text), "ls q")
+	}
+	want := []input.Action{input.ActionDown, input.ActionSelect, input.ActionQuit, input.ActionBackspace} // the s of "ls" is down
+	if len(fi.Actions) != len(want) {
+		t.Fatalf("actions = %v, want %v", fi.Actions, want)
+	}
+	for i := range want {
+		if fi.Actions[i] != want[i] {
+			t.Fatalf("actions = %v, want %v", fi.Actions, want)
+		}
 	}
 }
 

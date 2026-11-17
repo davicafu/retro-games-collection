@@ -258,3 +258,40 @@ func TestRoundCanNameTheGameOverTitle(t *testing.T) {
 		t.Fatalf("title = %q, want the round's title", m.Title())
 	}
 }
+
+// typingRound is a fakeRound that takes text while typing is set.
+type typingRound struct {
+	fakeRound
+	typing bool
+}
+
+func (r *typingRound) TakingText() bool { return r.typing }
+
+func TestATypingRoundGetsLettersAsTextNotQuitOrPause(t *testing.T) {
+	r := &typingRound{typing: true}
+	s := New(func() Round { return r })
+	update(t, s, input.FrameInput{Actions: []input.Action{input.ActionQuit, input.ActionPause}, Text: []rune{'q', 'p'}})
+	if s.ShouldQuit() {
+		t.Fatalf("typing q must not quit")
+	}
+	if _, open := s.Overlay(); open {
+		t.Fatalf("typing p must not pause")
+	}
+	got := r.frames[0]
+	if len(got.Actions) != 0 || string(got.Text) != "qp" {
+		t.Fatalf("round got %+v, want the text without its actions", got)
+	}
+	update(t, s, press(input.ActionPause)) // Esc
+	if _, open := s.Overlay(); !open {
+		t.Fatalf("Esc must still pause a typing round")
+	}
+}
+
+func TestARoundNotTypingKeepsLettersAsActions(t *testing.T) {
+	r := &typingRound{typing: false}
+	s := New(func() Round { return r })
+	update(t, s, input.FrameInput{Actions: []input.Action{input.ActionQuit}, Text: []rune{'q'}})
+	if !s.ShouldQuit() {
+		t.Fatalf("q must quit a round that is not typing")
+	}
+}

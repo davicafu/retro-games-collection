@@ -22,6 +22,14 @@ type Round interface {
 	Summary() []overlay.Section
 }
 
+// TextTaker is optionally implemented by a Round that takes typed text,
+// e.g. at a prompt. While TakingText is true the round gets typed
+// characters as text only: Q and P do not quit or pause, while Esc still
+// pauses.
+type TextTaker interface {
+	TakingText() bool
+}
+
 // OverTitler is optionally implemented by a Round to title the end-of-round
 // overlay, e.g. for a win. Rounds without it get "Game Over".
 type OverTitler interface {
@@ -58,6 +66,9 @@ func (s *Session) Update(ctx context.Context, frame input.FrameInput) error {
 		return nil
 	}
 
+	if t, ok := s.round.(TextTaker); ok && t.TakingText() {
+		frame = input.WithoutTyping(frame)
+	}
 	for _, a := range frame.Actions {
 		switch a {
 		case input.ActionQuit:
