@@ -93,8 +93,8 @@ func TestNew_CreatesMenuStateWithDefaults(t *testing.T) {
 	if m.state != stateMenu {
 		t.Fatalf("expected stateMenu, got %v", m.state)
 	}
-	if len(m.games) != 9 {
-		t.Fatalf("expected 9 games, got %d", len(m.games))
+	if len(m.games) != 10 {
+		t.Fatalf("expected 10 games, got %d", len(m.games))
 	}
 	if m.games[0].Name != "Snake" {
 		t.Fatalf("expected game name 'Snake', got %q", m.games[0].Name)
@@ -122,6 +122,9 @@ func TestNew_CreatesMenuStateWithDefaults(t *testing.T) {
 	}
 	if m.games[8].Name != "Debris" {
 		t.Fatalf("expected game name 'Debris', got %q", m.games[8].Name)
+	}
+	if m.games[9].Name != "Rack" {
+		t.Fatalf("expected game name 'Rack', got %q", m.games[9].Name)
 	}
 	if m.cursor != 0 {
 		t.Fatalf("expected cursor 0, got %d", m.cursor)
@@ -221,6 +224,17 @@ func TestNewWithGame_DebrisSetsPlayingState(t *testing.T) {
 	m.gameCtrl.cancel()
 }
 
+func TestNewWithGame_RackSetsPlayingState(t *testing.T) {
+	m := NewWithGame("rack")
+	if m.state != statePlaying {
+		t.Fatalf("expected statePlaying, got %v", m.state)
+	}
+	if m.games[m.cursor].Name != "Rack" {
+		t.Fatalf("expected cursor on Rack, got %q", m.games[m.cursor].Name)
+	}
+	m.gameCtrl.cancel()
+}
+
 func TestMenuViewNamesTheGameEachOneIsLike(t *testing.T) {
 	view := New().menuView()
 	for _, want := range []string{
@@ -231,6 +245,7 @@ func TestMenuViewNamesTheGameEachOneIsLike(t *testing.T) {
 		"Leak · Pac-Man-like",
 		"Packet · Subway Surfers-like",
 		"Debris · Asteroids-like",
+		"Rack · Donkey Kong-like",
 	} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("menu missing %q:\n%s", want, view)
@@ -753,6 +768,7 @@ func TestPlayingView_ShowsControlsOfTheRunningGame(t *testing.T) {
 		"Leak":    {"[ESC] pause", "[q] quit", "[arrows/WASD] move"},
 		"Packet":  {"[ESC] pause", "[q] quit", "[↑↓/WS] switch link"},
 		"Debris":  {"[ESC] pause", "[q] quit", "[←→/AD] turn", "[↑/W] thrust", "[↓/S] brake", "[space] fire"},
+		"Rack":    {"[ESC] pause", "[q] quit", "[arrows/WASD] walk/climb", "[space] jump", "[f] throw"},
 	}
 	for name, want := range cases {
 		m := New()
