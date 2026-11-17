@@ -85,7 +85,7 @@ func New() Model {
 			{Name: "Botnet", Like: "Space Invaders", Description: "Fire back at the antivirus waves", Controls: "[←→/AD] move  [↑/W/space] fire", starter: runBotnetGame},
 			{Name: "Leak", Like: "Pac-Man", Description: "Leak memory, dodge the collectors", Controls: "[arrows/WASD] move", starter: runLeakGame},
 			{Name: "Packet", Like: "Subway Surfers", Description: "Switch links, dodge the firewalls", Controls: "[↑↓/WS] switch link", starter: runPacketGame},
-			{Name: "Debris", Like: "Asteroids", Description: "Clear the orbit of space debris", Controls: "[←→/AD] turn  [↑/W] thrust  [space] fire", starter: runDebrisGame},
+			{Name: "Debris", Like: "Asteroids", Description: "Clear the orbit of space debris", Controls: "[←→/AD] turn  [↑/W] thrust  [↓/S] brake  [space] fire", starter: runDebrisGame},
 		},
 		width:  80,
 		height: 24,

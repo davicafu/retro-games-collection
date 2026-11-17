@@ -693,7 +693,7 @@ func TestPlayingView_ShowsControlsOfTheRunningGame(t *testing.T) {
 		"Botnet":  {"[ESC] pause", "[q] quit", "[←→/AD] move", "[↑/W/space] fire"},
 		"Leak":    {"[ESC] pause", "[q] quit", "[arrows/WASD] move"},
 		"Packet":  {"[ESC] pause", "[q] quit", "[↑↓/WS] switch link"},
-		"Debris":  {"[ESC] pause", "[q] quit", "[←→/AD] turn", "[↑/W] thrust", "[space] fire"},
+		"Debris":  {"[ESC] pause", "[q] quit", "[←→/AD] turn", "[↑/W] thrust", "[↓/S] brake", "[space] fire"},
 	}
 	for name, want := range cases {
 		m := New()

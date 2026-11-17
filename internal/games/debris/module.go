@@ -18,7 +18,7 @@ const (
 )
 
 // round adapts Game to session.Round: left and right (and A/D) turn, up (W)
-// thrusts and space fires; a frame may hold several of them, and of two
+// thrusts, down (S) brakes and space fires; a frame may hold several of them, and of two
 // turns the last one wins.
 type round struct {
 	*Game
@@ -34,6 +34,8 @@ func (r round) Update(_ context.Context, frame input.FrameInput) error {
 			in.Turn = 1
 		case input.ActionUp:
 			in.Thrust = true
+		case input.ActionDown:
+			in.Brake = true
 		case input.ActionSelect:
 			in.Fire = true
 		}

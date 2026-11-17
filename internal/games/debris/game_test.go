@@ -283,3 +283,53 @@ func TestShotPositionsStayInsideTheSpace(t *testing.T) {
 		t.Fatalf("shot at %v, want wrapped inside the space", p)
 	}
 }
+
+func TestTheDroneDriftsToRestWithoutThrust(t *testing.T) {
+	g := newTestGame(far(Small))
+	g.drone.Vel = motion.Vec{X: MaxDroneSpeed}
+	steps(g, 6*60, Input{})
+	if v := g.Drone().Vel; v != (motion.Vec{}) {
+		t.Fatalf("after 6 s without thrust the drone moves at %v, want at rest", v)
+	}
+}
+
+func TestBrakeStopsTheDroneWithinASecond(t *testing.T) {
+	g := newTestGame(far(Small))
+	g.drone.Vel = motion.Vec{X: MaxDroneSpeed, Y: -MaxDroneSpeed / 2}
+	steps(g, 60, Input{Brake: true})
+	if v := g.Drone().Vel; v != (motion.Vec{}) {
+		t.Fatalf("after a second of braking the drone moves at %v, want at rest", v)
+	}
+}
+
+// TestABrakePressLastsLikeAThrustPress: terminals report no key release, so
+// one press brakes for BrakeTicks and a held key's repeats join up.
+func TestABrakePressLastsLikeAThrustPress(t *testing.T) {
+	g := newTestGame(far(Small))
+	g.drone.Vel = motion.Vec{X: MaxDroneSpeed}
+	g.Step(Input{Brake: true})
+	steps(g, BrakeTicks-1, Input{})
+	braked := g.Drone().Vel.X
+	if braked > MaxDroneSpeed/3 {
+		t.Fatalf("one brake press left speed %d, want under %d", braked, MaxDroneSpeed/3)
+	}
+	steps(g, 10, Input{})
+	if lost := braked - g.Drone().Vel.X; lost > 10 {
+		t.Fatalf("after the press ran out speed fell by %d in 10 ticks, want only drag", lost)
+	}
+}
+
+func TestThrustOverridesTheBrake(t *testing.T) {
+	g := newTestGame(far(Small))
+	g.Step(Input{Brake: true})
+	g.Step(Input{Thrust: true})
+	if g.Drone().Vel == (motion.Vec{}) {
+		t.Fatalf("thrust after a brake must accelerate")
+	}
+	steps(g, ThrustTicks, Input{})
+	before := g.Drone().Vel.Len()
+	steps(g, 10, Input{})
+	if lost := before - g.Drone().Vel.Len(); lost > 10 {
+		t.Fatalf("after the thrust speed fell by %d in 10 ticks, want only drag, not the earlier brake", lost)
+	}
+}

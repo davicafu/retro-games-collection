@@ -10,7 +10,11 @@ import (
 
 const (
 	glyphShot = '•'
-	glyphLife = '♥'
+	// glyphAim marks where the drone really points, AimDistance ahead: its
+	// glyph only shows the nearest eighth of a turn of its 32 headings.
+	glyphAim    = '·'
+	AimDistance = 4 * CellW
+	glyphLife   = '♥'
 
 	// Debris is red, what can hurt the drone; the drone and its shots are
 	// in colours of their own.
@@ -64,7 +68,10 @@ func Draw(screen render.Screen, g *Game) {
 		return
 	}
 	d := g.Drone()
-	col, row := cellOf(d.Pos.X, d.Pos.Y)
+	aim := g.Space().Wrap(d.Pos.Add(motion.Heading(d.Heading).Scale(AimDistance, motion.Unit)))
+	col, row := cellOf(aim.X, aim.Y)
+	set(col, row, glyphAim, colorDrone)
+	col, row = cellOf(d.Pos.X, d.Pos.Y)
 	set(col, row, droneGlyphs[droneGlyph(d.Heading)], colorDrone)
 }
 

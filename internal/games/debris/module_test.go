@@ -59,6 +59,10 @@ func TestRoundMapsKeysToTurnThrustAndFire(t *testing.T) {
 	if g.Drone().Heading != 1 || g.Drone().Vel == (motion.Vec{}) || len(g.Shots()) != 1 {
 		t.Fatalf("one frame with a turn, thrust and fire must do all three: %+v, %d shots", g.Drone(), len(g.Shots()))
 	}
+	update(t, s, press(input.ActionDown))
+	if g.brakeLeft == 0 {
+		t.Fatalf("down must brake")
+	}
 }
 
 func TestBreachedHullShowsTheEndTitleWithScoreAndWave(t *testing.T) {

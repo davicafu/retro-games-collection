@@ -109,3 +109,21 @@ func TestDrawAShieldedDroneBlinks(t *testing.T) {
 		t.Fatalf("an unshielded drone must always show")
 	}
 }
+
+// TestDrawAnAimMarkAlongTheExactHeading: the drone's glyph only shows the
+// nearest eighth of a turn, so a mark ahead of it shows where it really
+// points and thrusts.
+func TestDrawAnAimMarkAlongTheExactHeading(t *testing.T) {
+	g := newTestGame(far(Small))
+	g.drone.Pos = motion.Vec{X: 7*CellW + CellW/2, Y: 3*CellH + CellH - 1}
+	for heading, want := range map[int][2]int{0: {7, 1}, 1: {8, 2}, motion.Headings - 2: {5, 2}} {
+		g.drone.Heading = heading
+		rows, colors, _ := drawn(g)
+		if at(rows, 7, 3) != '▲' {
+			t.Fatalf("heading %d: drone drawn %q, want ▲", heading, at(rows, 7, 3))
+		}
+		if got := at(rows, want[0], want[1]); got != glyphAim || colors[want[1]][want[0]] != colorDrone {
+			t.Fatalf("heading %d: cell %v = %q, want the aim mark\n%s", heading, want, got, strings.Join(rows, "\n"))
+		}
+	}
+}

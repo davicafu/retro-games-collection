@@ -39,8 +39,13 @@ const (
 	ThrustAccel   = 6
 	MaxDroneSpeed = 300 // 18 cells/s
 	// DragDen is the drag: every tick the drone loses 1/DragDen of its
-	// velocity (half of it in about 1.4 s).
+	// velocity (half of it in about 1.4 s), and comes to rest.
 	DragDen = 120
+	// A press of the brake slows the drone hard for BrakeTicks, losing
+	// 1/BrakeDen of its velocity a tick: from top speed to rest in under a
+	// second. Thrust wins over the brake.
+	BrakeTicks = ThrustTicks
+	BrakeDen   = 12
 
 	ShotSpeed    = 600 // 36 cells/s, added to the drone's velocity
 	ShotTicks    = 45  // a shot's flight, 0.75 s
@@ -101,6 +106,7 @@ type Rand interface {
 type Input struct {
 	Turn   int
 	Thrust bool
+	Brake  bool
 	Fire   bool
 }
 
@@ -139,6 +145,7 @@ type Game struct {
 	drone      Drone
 	turn       glide.Glide
 	thrustLeft int
+	brakeLeft  int
 	cooldown   int
 	shield     int
 	shots      []Shot
@@ -172,7 +179,7 @@ func (g *Game) centre() motion.Vec { return motion.Vec{X: g.space.W / 2, Y: g.sp
 
 func (g *Game) respawn() {
 	g.drone = Drone{Body: motion.Body{Pos: g.centre()}}
-	g.thrustLeft = 0
+	g.thrustLeft, g.brakeLeft = 0, 0
 	g.turn.Stop()
 	g.shield = ShieldTicks
 }
@@ -226,12 +233,19 @@ func (g *Game) steer(in Input) {
 	}
 	d.Heading = ((d.Heading+g.turn.Step())%motion.Headings + motion.Headings) % motion.Headings
 	if in.Thrust {
-		g.thrustLeft = ThrustTicks
+		g.thrustLeft, g.brakeLeft = ThrustTicks, 0
 	}
-	if g.thrustLeft > 0 {
+	if in.Brake && !in.Thrust {
+		g.brakeLeft, g.thrustLeft = BrakeTicks, 0
+	}
+	switch {
+	case g.thrustLeft > 0:
 		g.thrustLeft--
 		d.Vel = d.Vel.Add(motion.Heading(d.Heading).Scale(ThrustAccel, motion.Unit))
-	} else {
+	case g.brakeLeft > 0:
+		g.brakeLeft--
+		d.Vel = motion.Damp(d.Vel, BrakeDen)
+	default:
 		d.Vel = motion.Damp(d.Vel, DragDen)
 	}
 	d.Vel = motion.Limit(d.Vel, MaxDroneSpeed)
