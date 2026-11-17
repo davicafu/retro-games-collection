@@ -67,3 +67,18 @@ func TestBodyMovesByItsVelocityAndWraps(t *testing.T) {
 		t.Fatalf("Pos = %v, want {3 48}", b.Pos)
 	}
 }
+
+// TestDampBringsAnyVelocityToRest: drag removes at least one unit a tick,
+// so a velocity smaller than den does not drift forever.
+func TestDampBringsAnyVelocityToRest(t *testing.T) {
+	if got := Damp(Vec{100, -50}, 120); got != (Vec{99, -49}) {
+		t.Fatalf("Damp = %v, want {99 -49}", got)
+	}
+	v := Vec{300, -170}
+	for i := 0; i < 1000 && v != (Vec{}); i++ {
+		v = Damp(v, 120)
+	}
+	if v != (Vec{}) {
+		t.Fatalf("after 1000 ticks of drag v = %v, want at rest", v)
+	}
+}

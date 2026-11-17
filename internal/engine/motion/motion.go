@@ -14,8 +14,19 @@ func (v Vec) Scale(num, den int) Vec { return Vec{v.X * num / den, v.Y * num / d
 // Len is the length of v, rounded down.
 func (v Vec) Len() int { return isqrt(v.X*v.X + v.Y*v.Y) }
 
-// Damp is drag: it removes 1/den of v.
-func Damp(v Vec, den int) Vec { return Vec{v.X - v.X/den, v.Y - v.Y/den} }
+// Damp is drag: it removes 1/den of v, and at least one unit of each
+// component that is not zero, so drag always brings v to rest.
+func Damp(v Vec, den int) Vec { return Vec{damp(v.X, den), damp(v.Y, den)} }
+
+func damp(x, den int) int {
+	switch {
+	case x > 0:
+		return x - max(x/den, 1)
+	case x < 0:
+		return x + max(-x/den, 1)
+	}
+	return 0
+}
 
 // Limit shortens v to at most max, keeping its direction.
 func Limit(v Vec, max int) Vec {
