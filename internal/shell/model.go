@@ -14,6 +14,7 @@ import (
 	"github.com/davidbarreiro/cli-games-collection/internal/games/botnet"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/breach"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/debris"
+	"github.com/davidbarreiro/cli-games-collection/internal/games/defrag"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/drone"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/leak"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/packet"
@@ -88,6 +89,7 @@ func New() Model {
 			{Name: "Packet", Like: "Subway Surfers", Description: "Switch links, dodge the firewalls", Controls: "[↑↓/WS] switch link", starter: runPacketGame},
 			{Name: "Debris", Like: "Asteroids", Description: "Clear the orbit of space debris", Controls: "[←→/AD] turn  [↑/W] thrust  [↓/S] brake  [space] fire", starter: runDebrisGame},
 			{Name: "Rack", Like: "Donkey Kong", Description: "Climb the data center, grab the disks", Controls: "[arrows/WASD] walk/climb  [space] jump  [f] throw", starter: runRackGame},
+			{Name: "Defrag", Like: "Tetris", Description: "Fit the fragments, free the sectors", Controls: "[←→↓/ASD] move  [↑/W] rotate  [space] slam  [g] guides", starter: runDefragGame},
 		},
 		width:  80,
 		height: 24,
@@ -477,5 +479,14 @@ func runRackGame(ctx context.Context, provider input.Provider, screen render.Scr
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	module := rack.NewModule(ticker, screen, provider, rng)
+	return module.Run(ctx)
+}
+
+func runDefragGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
+	ticker := clock.NewTicker(defrag.TickPeriod)
+	defer ticker.Stop()
+
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	module := defrag.NewModule(ticker, screen, provider, rng)
 	return module.Run(ctx)
 }

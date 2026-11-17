@@ -93,8 +93,8 @@ func TestNew_CreatesMenuStateWithDefaults(t *testing.T) {
 	if m.state != stateMenu {
 		t.Fatalf("expected stateMenu, got %v", m.state)
 	}
-	if len(m.games) != 10 {
-		t.Fatalf("expected 10 games, got %d", len(m.games))
+	if len(m.games) != 11 {
+		t.Fatalf("expected 11 games, got %d", len(m.games))
 	}
 	if m.games[0].Name != "Snake" {
 		t.Fatalf("expected game name 'Snake', got %q", m.games[0].Name)
@@ -125,6 +125,9 @@ func TestNew_CreatesMenuStateWithDefaults(t *testing.T) {
 	}
 	if m.games[9].Name != "Rack" {
 		t.Fatalf("expected game name 'Rack', got %q", m.games[9].Name)
+	}
+	if m.games[10].Name != "Defrag" {
+		t.Fatalf("expected game name 'Defrag', got %q", m.games[10].Name)
 	}
 	if m.cursor != 0 {
 		t.Fatalf("expected cursor 0, got %d", m.cursor)
@@ -235,6 +238,17 @@ func TestNewWithGame_RackSetsPlayingState(t *testing.T) {
 	m.gameCtrl.cancel()
 }
 
+func TestNewWithGame_DefragSetsPlayingState(t *testing.T) {
+	m := NewWithGame("defrag")
+	if m.state != statePlaying {
+		t.Fatalf("expected statePlaying, got %v", m.state)
+	}
+	if m.games[m.cursor].Name != "Defrag" {
+		t.Fatalf("expected cursor on Defrag, got %q", m.games[m.cursor].Name)
+	}
+	m.gameCtrl.cancel()
+}
+
 func TestMenuViewNamesTheGameEachOneIsLike(t *testing.T) {
 	view := New().menuView()
 	for _, want := range []string{
@@ -246,6 +260,7 @@ func TestMenuViewNamesTheGameEachOneIsLike(t *testing.T) {
 		"Packet · Subway Surfers-like",
 		"Debris · Asteroids-like",
 		"Rack · Donkey Kong-like",
+		"Defrag · Tetris-like",
 	} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("menu missing %q:\n%s", want, view)
@@ -757,6 +772,14 @@ func TestPlayingView_ShowsFrameAndOverlay(t *testing.T) {
 	}
 }
 
+func TestEveryGamesControlsHintFitsTheTerminal(t *testing.T) {
+	for _, g := range New().games {
+		if line := "  [ESC] pause  [q] quit  " + g.Controls; len([]rune(line)) > 80 {
+			t.Fatalf("%s controls hint is %d columns, wider than 80: %q", g.Name, len([]rune(line)), line)
+		}
+	}
+}
+
 func TestPlayingView_ShowsControlsOfTheRunningGame(t *testing.T) {
 	cases := map[string][]string{
 		"Snake":   {"[ESC] pause", "[q] quit", "[arrows/WASD] move"},
@@ -769,6 +792,7 @@ func TestPlayingView_ShowsControlsOfTheRunningGame(t *testing.T) {
 		"Packet":  {"[ESC] pause", "[q] quit", "[↑↓/WS] switch link"},
 		"Debris":  {"[ESC] pause", "[q] quit", "[←→/AD] turn", "[↑/W] thrust", "[↓/S] brake", "[space] fire"},
 		"Rack":    {"[ESC] pause", "[q] quit", "[arrows/WASD] walk/climb", "[space] jump", "[f] throw"},
+		"Defrag":  {"[ESC] pause", "[q] quit", "[←→↓/ASD] move", "[↑/W] rotate", "[space] slam", "[g] guides"},
 	}
 	for name, want := range cases {
 		m := New()
