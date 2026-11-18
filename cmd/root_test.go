@@ -9,8 +9,8 @@ import (
 func TestNewRootCommand_UsesCollectionName(t *testing.T) {
 	cmd := NewRootCommand(func() error { return nil }, nil)
 
-	if cmd.Use != "cli-games-collection" {
-		t.Fatalf("expected root command use to be cli-games-collection, got %q", cmd.Use)
+	if cmd.Use != "retro-games" {
+		t.Fatalf("expected root command use to be retro-games, got %q", cmd.Use)
 	}
 
 	if !cmd.SilenceErrors {
@@ -90,7 +90,7 @@ func TestCallbacks_ErrorPropagation(t *testing.T) {
 
 func TestExecute_InvokesLauncherCallback(t *testing.T) {
 	originalArgs := os.Args
-	os.Args = []string{"cli-games-collection"}
+	os.Args = []string{"retro-games"}
 	t.Cleanup(func() { os.Args = originalArgs })
 
 	called := false
@@ -110,7 +110,7 @@ func TestExecute_InvokesLauncherCallback(t *testing.T) {
 
 func TestExecute_ForwardsPlaySelectedGame(t *testing.T) {
 	originalArgs := os.Args
-	os.Args = []string{"cli-games-collection", "play", "snake"}
+	os.Args = []string{"retro-games", "play", "snake"}
 	t.Cleanup(func() { os.Args = originalArgs })
 
 	var selected string
@@ -130,7 +130,7 @@ func TestExecute_ForwardsPlaySelectedGame(t *testing.T) {
 
 func TestExecute_PropagatesLauncherError(t *testing.T) {
 	originalArgs := os.Args
-	os.Args = []string{"cli-games-collection"}
+	os.Args = []string{"retro-games"}
 	t.Cleanup(func() { os.Args = originalArgs })
 
 	launcherErr := errors.New("launcher failed")

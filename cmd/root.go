@@ -12,7 +12,7 @@ func NewRootCommand(runLauncher app.Launcher, runGame app.Runner) *cobra.Command
 	}
 
 	cmd := &cobra.Command{
-		Use:           "cli-games-collection",
+		Use:           "retro-games",
 		Short:         "Progressive terminal games laboratory",
 		SilenceErrors: true,
 		SilenceUsage:  true,

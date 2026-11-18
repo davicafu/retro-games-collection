@@ -2,6 +2,7 @@ package shell
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"strings"
 	"time"
@@ -10,7 +11,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/clock"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/input"
+	"github.com/davidbarreiro/cli-games-collection/internal/engine/records"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/render"
+	"github.com/davidbarreiro/cli-games-collection/internal/engine/ui/highscore"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/botnet"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/breach"
 	"github.com/davidbarreiro/cli-games-collection/internal/games/debris"
@@ -36,6 +39,10 @@ type appState int
 const (
 	stateMenu appState = iota
 	statePlaying
+	// stateScores shows one game's high score table.
+	stateScores
+	// stateResume asks whether to continue a saved run or start a new one.
+	stateResume
 )
 
 // gameEntry describes a playable game.
@@ -49,8 +56,22 @@ type gameEntry struct {
 	Controls    string // game-specific keys shown under the frame while playing
 	// Typing marks a game that takes typed text: q is a letter there, so
 	// its hint offers ctrl+c to quit instead.
-	Typing  bool
-	starter func(ctx context.Context, input input.Provider, screen render.Screen, width, height int) error
+	Typing bool
+	// Saved marks the game whose run is saved between plays.
+	Saved   bool
+	starter func(ctx context.Context, input input.Provider, screen render.Screen, l launch) error
+}
+
+// key names the game in the records files.
+func (g gameEntry) key() string { return strings.ToLower(g.Name) }
+
+// launch is what a game starts with: the terminal size, its high score
+// table and, for a saved game, its slot and whether to continue it.
+type launch struct {
+	Width, Height int
+	Board         records.Board
+	Save          records.Slot
+	Resume        bool
 }
 
 // Model is the root Bubble Tea model that orchestrates the entire app.
@@ -69,6 +90,22 @@ type Model struct {
 	// Layout
 	width  int
 	height int
+
+	// Records
+	book   *records.Book
+	saves  *records.Saves
+	scores int // the game whose table is shown
+	// newGame selects "New game" instead of "Continue" while asking.
+	newGame bool
+}
+
+// Option configures the model.
+type Option func(*Model)
+
+// WithRecords keeps the high score tables in book and saved runs in saves;
+// without it they live in memory only.
+func WithRecords(book *records.Book, saves *records.Saves) Option {
+	return func(m *Model) { m.book, m.saves = book, saves }
 }
 
 type gameController struct {
@@ -78,8 +115,8 @@ type gameController struct {
 }
 
 // New creates the root model with available games.
-func New() Model {
-	return Model{
+func New(opts ...Option) Model {
+	m := Model{
 		state:  stateMenu,
 		cursor: 0,
 		games: []gameEntry{
@@ -94,21 +131,31 @@ func New() Model {
 			{Name: "Debris", Like: "Asteroids", Description: "Clear the orbit of space debris", Controls: "[←→/AD] turn  [↑/W] thrust  [↓/S] brake  [space] fire", starter: runDebrisGame},
 			{Name: "Rack", Like: "Donkey Kong", Description: "Climb the data center, grab the disks", Controls: "[arrows/WASD] walk/climb  [space] jump  [f] throw", starter: runRackGame},
 			{Name: "Defrag", Like: "Tetris", Description: "Fit the fragments, free the sectors", Controls: "[←→↓/ASD] move  [↑/W] rotate  [space] slam  [g] guides", starter: runDefragGame},
-			{Name: "Hack", Description: "Crack the network, read its secret", Controls: "[enter] run  [↑↓] history  [arrows/space] breach", Typing: true, starter: runHackGame},
+			{Name: "Hack", Description: "Crack the network, read its secret", Controls: "[enter] run  [↑↓] history  [arrows/space] breach", Typing: true, Saved: true, starter: runHackGame},
 		},
 		width:  80,
 		height: 24,
 	}
+	for _, o := range opts {
+		o(&m)
+	}
+	if m.book == nil {
+		m.book, _ = records.Open("")
+	}
+	if m.saves == nil {
+		m.saves, _ = records.OpenSaves("")
+	}
+	return m
 }
 
 // NewWithGame creates a model that starts a specific game immediately,
 // skipping the menu. Used by the play command.
-func NewWithGame(name string) Model {
-	m := New()
+func NewWithGame(name string, opts ...Option) Model {
+	m := New(opts...)
 	for i, g := range m.games {
 		if strings.EqualFold(g.Name, name) {
-			m = m.startGame(g)
 			m.cursor = i
+			m = m.choose(g)
 			break
 		}
 	}
@@ -135,6 +182,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateMenu(msg)
 		case statePlaying:
 			return m.updatePlaying(msg)
+		case stateScores:
+			return m.updateScores(msg), nil
+		case stateResume:
+			return m.updateResume(msg)
 		}
 
 	case FrameMsg:
@@ -164,9 +215,11 @@ func (m Model) updateMenu(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.cursor++
 		}
 	case tea.KeyEnter:
-		entry := m.games[m.cursor]
-		m = m.startGame(entry)
-		return m, m.awaitGameEvent()
+		m = m.choose(m.games[m.cursor])
+		if m.state == statePlaying {
+			return m, m.awaitGameEvent()
+		}
+		return m, nil
 	case tea.KeyCtrlC, tea.KeyEscape:
 		return m, tea.Quit
 	}
@@ -175,6 +228,62 @@ func (m Model) updateMenu(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "q", "Q":
 		return m, tea.Quit
+	case "r", "R":
+		m.state, m.scores = stateScores, m.cursor
+	}
+	return m, nil
+}
+
+// choose starts the game, or first asks whether to continue its saved run.
+func (m Model) choose(entry gameEntry) Model {
+	if _, ok := m.savedLevel(entry); ok {
+		m.state, m.newGame = stateResume, false
+		return m
+	}
+	return m.startGame(entry)
+}
+
+// savedLevel is the level, from 1, a saved game's run continues at.
+func (m Model) savedLevel(entry gameEntry) (int, bool) {
+	if !entry.Saved {
+		return 0, false
+	}
+	var cp hack.Checkpoint
+	if ok, _ := m.saves.Slot(entry.key()).Load(&cp); !ok {
+		return 0, false
+	}
+	return cp.Level + 1, true
+}
+
+// updateScores moves between games' tables with ←→; esc, q or r go back.
+func (m Model) updateScores(msg tea.KeyMsg) Model {
+	switch msg.Type {
+	case tea.KeyLeft:
+		m.scores = (m.scores + len(m.games) - 1) % len(m.games)
+	case tea.KeyRight:
+		m.scores = (m.scores + 1) % len(m.games)
+	case tea.KeyEscape:
+		m.state = stateMenu
+	}
+	switch msg.String() {
+	case "q", "Q", "r", "R":
+		m.state = stateMenu
+	}
+	return m
+}
+
+// updateResume picks Continue or New game with ↑↓ and enter; esc goes back.
+func (m Model) updateResume(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyUp:
+		m.newGame = false
+	case tea.KeyDown:
+		m.newGame = true
+	case tea.KeyEnter:
+		m = m.launchGame(m.games[m.cursor], !m.newGame)
+		return m, m.awaitGameEvent()
+	case tea.KeyEscape:
+		m.state = stateMenu
 	}
 	return m, nil
 }
@@ -216,7 +325,11 @@ func (m Model) updatePlaying(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) startGame(entry gameEntry) Model {
+// startGame starts a new game of entry.
+func (m Model) startGame(entry gameEntry) Model { return m.launchGame(entry, false) }
+
+// launchGame starts entry; resume continues its saved run.
+func (m Model) launchGame(entry gameEntry, resume bool) Model {
 	frameCh := make(chan string, 1)
 	doneCh := make(chan error, 1)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -241,7 +354,11 @@ func (m Model) startGame(entry gameEntry) Model {
 			frameCh:      frameCh,
 		}
 
-		err := entry.starter(ctx, provider, broadcaster, m.width, m.height)
+		l := launch{Width: m.width, Height: m.height, Board: m.book.Board(entry.key()), Resume: resume}
+		if entry.Saved {
+			l.Save = m.saves.Slot(entry.key())
+		}
+		err := entry.starter(ctx, provider, broadcaster, l)
 		if err != nil {
 			doneCh <- err
 			return
@@ -285,6 +402,10 @@ func (m Model) View() string {
 		return m.menuView()
 	case statePlaying:
 		return m.playingView()
+	case stateScores:
+		return m.scoresView()
+	case stateResume:
+		return m.resumeView()
 	}
 	return ""
 }
@@ -292,8 +413,8 @@ func (m Model) View() string {
 func (m Model) menuView() string {
 	const width = 44
 	const inner = width - 2 // 42 — espacio visible entre ║║
-	const innerBox = 38     // 42 - 4 — espacio entre ││ del inner box
-	const textArea = 36     // innerBox - 2 — texto entre los espacios │ ▸ text │
+	const innerBox = 36     // 42 - 6 — espacio entre ││ del inner box, 2 de margen a cada lado
+	const textArea = 34     // innerBox - 2 — texto entre los espacios │ ▸ text │
 
 	title := lipgloss.NewStyle().
 		Bold(true).
@@ -307,7 +428,7 @@ func (m Model) menuView() string {
 	hintsStyle := lipgloss.NewStyle().
 		Width(inner).
 		Foreground(lipgloss.Color("240"))
-	hints := hintsStyle.Render("  ↑↓ navigate  ↵ select  q quit")
+	hints := hintsStyle.Render("  ↑↓ navigate  ↵ select  r scores  q quit")
 
 	var b strings.Builder
 	b.Grow(width * 18)
@@ -324,7 +445,7 @@ func (m Model) menuView() string {
 	boxLine(strings.Repeat(" ", inner))
 
 	// ─── Inner game list box ────────────────────────────────────
-	boxLine("  ┌" + strings.Repeat("─", innerBox) + "┐")
+	boxLine("  ┌" + strings.Repeat("─", innerBox) + "┐  ")
 
 	for i, g := range m.games {
 		cur := "  "
@@ -334,16 +455,19 @@ func (m Model) menuView() string {
 			nameStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("46"))
 		}
 
-		// "  │ ▸ Snake                          │" (cols 0-1 margen, 2│, 3 , 4-39 texto, 40 , 41│)
+		// "  │ ▸ Snake                        │  " (cols 0-1 margen, 2│, 3 , 4-37 texto, 38 , 39│, 40-41 margen)
 		label := nameStyle.Render(g.Name)
 		if g.Like != "" {
 			label += lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(" · " + g.Like + "-like")
 		}
+		if _, ok := m.savedLevel(g); ok {
+			label += lipgloss.NewStyle().Foreground(lipgloss.Color("220")).Render(" · saved run")
+		}
 		nameText := lipgloss.NewStyle().Width(textArea).Render(cur + label)
-		boxLine("  │ " + nameText + " │")
+		boxLine("  │ " + nameText + " │  ")
 	}
 
-	boxLine("  └" + strings.Repeat("─", innerBox) + "┘")
+	boxLine("  └" + strings.Repeat("─", innerBox) + "┘  ")
 
 	// Only the selected game is described, below the list, so the menu fits
 	// a 24-row terminal with every game of the roadmap.
@@ -357,6 +481,55 @@ func (m Model) menuView() string {
 	b.WriteString("╚" + strings.Repeat("═", inner) + "╝")
 
 	return b.String()
+}
+
+// panel draws a box like the menu's: a title, a separator, the lines and
+// a hint row, every row inner columns wide.
+func panel(title string, lines []string, hint string) string {
+	const inner = 42
+	row := func(text string) string {
+		return "║" + lipgloss.NewStyle().Width(inner).Render(text) + "║\n"
+	}
+	var b strings.Builder
+	b.WriteString("╔" + strings.Repeat("═", inner) + "╗\n")
+	b.WriteString("║" + lipgloss.NewStyle().Width(inner).Align(lipgloss.Center).Render(
+		lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("220")).Render(title)) + "║\n")
+	b.WriteString("║" + lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(strings.Repeat("─", inner)) + "║\n")
+	b.WriteString(row(""))
+	for _, l := range lines {
+		b.WriteString(row("  " + l))
+	}
+	b.WriteString(row(""))
+	b.WriteString(row(lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("  " + hint)))
+	b.WriteString("╚" + strings.Repeat("═", inner) + "╝")
+	return b.String()
+}
+
+// scoresView is one game's high score table.
+func (m Model) scoresView() string {
+	g := m.games[m.scores]
+	lines := highscore.Lines(m.book.Top(g.key()), 0, nil)[1:]
+	return panel("HIGH SCORES · "+g.Name, lines, "←→ game  esc back")
+}
+
+// resumeView asks whether to continue the saved run or start a new one.
+func (m Model) resumeView() string {
+	g := m.games[m.cursor]
+	level, _ := m.savedLevel(g)
+	options := []string{fmt.Sprintf("Continue (level %d)", level), "New game"}
+	selected := 0
+	if m.newGame {
+		selected = 1
+	}
+	for i := range options {
+		cur := "  "
+		if i == selected {
+			cur = "▸ "
+			options[i] = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("46")).Render(options[i])
+		}
+		options[i] = cur + options[i]
+	}
+	return panel(g.Name+" · saved run", options, "↑↓ choose  ↵ start  esc back")
 }
 
 func (m Model) playingView() string {
@@ -401,98 +574,98 @@ func mapKeyToAction(kt tea.KeyType) input.Action {
 	}
 }
 
-func runSnakeGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
+func runSnakeGame(ctx context.Context, provider input.Provider, screen render.Screen, l launch) error {
 	ticker := clock.NewTicker(120 * time.Millisecond)
 	defer ticker.Stop()
 
 	selector := snake.NewRandomSelector(rand.New(rand.NewSource(time.Now().UnixNano())))
-	module := snake.NewModule(ticker, screen, provider, selector)
+	module := snake.NewModule(ticker, screen, provider, selector).WithBoard(l.Board)
 	return module.Run(ctx)
 }
 
-func runSokobanGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
-	module := sokoban.NewModule(screen, provider)
+func runSokobanGame(ctx context.Context, provider input.Provider, screen render.Screen, l launch) error {
+	module := sokoban.NewModule(screen, provider).WithBoard(l.Board)
 	return module.Run(ctx)
 }
 
-func runRunnerGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
+func runRunnerGame(ctx context.Context, provider input.Provider, screen render.Screen, l launch) error {
 	ticker := clock.NewTicker(50 * time.Millisecond)
 	defer ticker.Stop()
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	module := runner.NewModule(ticker, screen, provider, rng)
+	module := runner.NewModule(ticker, screen, provider, rng).WithBoard(l.Board)
 	return module.Run(ctx)
 }
 
-func runDroneGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
+func runDroneGame(ctx context.Context, provider input.Provider, screen render.Screen, l launch) error {
 	ticker := clock.NewTicker(drone.TickPeriod)
 	defer ticker.Stop()
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	module := drone.NewModule(ticker, screen, provider, rng)
+	module := drone.NewModule(ticker, screen, provider, rng).WithBoard(l.Board)
 	return module.Run(ctx)
 }
 
-func runBreachGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
+func runBreachGame(ctx context.Context, provider input.Provider, screen render.Screen, l launch) error {
 	ticker := clock.NewTicker(breach.TickPeriod)
 	defer ticker.Stop()
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	module := breach.NewModule(ticker, screen, provider, rng)
+	module := breach.NewModule(ticker, screen, provider, rng).WithBoard(l.Board)
 	return module.Run(ctx)
 }
 
-func runBotnetGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
+func runBotnetGame(ctx context.Context, provider input.Provider, screen render.Screen, l launch) error {
 	ticker := clock.NewTicker(botnet.TickPeriod)
 	defer ticker.Stop()
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	module := botnet.NewModule(ticker, screen, provider, rng)
+	module := botnet.NewModule(ticker, screen, provider, rng).WithBoard(l.Board)
 	return module.Run(ctx)
 }
 
-func runLeakGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
+func runLeakGame(ctx context.Context, provider input.Provider, screen render.Screen, l launch) error {
 	ticker := clock.NewTicker(leak.TickPeriod)
 	defer ticker.Stop()
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	module := leak.NewModule(ticker, screen, provider, rng)
+	module := leak.NewModule(ticker, screen, provider, rng).WithBoard(l.Board)
 	return module.Run(ctx)
 }
 
-func runPacketGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
+func runPacketGame(ctx context.Context, provider input.Provider, screen render.Screen, l launch) error {
 	ticker := clock.NewTicker(packet.TickPeriod)
 	defer ticker.Stop()
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	module := packet.NewModule(ticker, screen, provider, rng)
+	module := packet.NewModule(ticker, screen, provider, rng).WithBoard(l.Board)
 	return module.Run(ctx)
 }
 
-func runDebrisGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
+func runDebrisGame(ctx context.Context, provider input.Provider, screen render.Screen, l launch) error {
 	ticker := clock.NewTicker(debris.TickPeriod)
 	defer ticker.Stop()
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	module := debris.NewModule(ticker, screen, provider, rng)
+	module := debris.NewModule(ticker, screen, provider, rng).WithBoard(l.Board)
 	return module.Run(ctx)
 }
 
-func runRackGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
+func runRackGame(ctx context.Context, provider input.Provider, screen render.Screen, l launch) error {
 	ticker := clock.NewTicker(rack.TickPeriod)
 	defer ticker.Stop()
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	module := rack.NewModule(ticker, screen, provider, rng)
+	module := rack.NewModule(ticker, screen, provider, rng).WithBoard(l.Board)
 	return module.Run(ctx)
 }
 
-func runDefragGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
+func runDefragGame(ctx context.Context, provider input.Provider, screen render.Screen, l launch) error {
 	ticker := clock.NewTicker(defrag.TickPeriod)
 	defer ticker.Stop()
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	module := defrag.NewModule(ticker, screen, provider, rng)
+	module := defrag.NewModule(ticker, screen, provider, rng).WithBoard(l.Board)
 	return module.Run(ctx)
 }
 
@@ -504,11 +677,11 @@ func quitKey(g gameEntry) string {
 	return "[q] quit"
 }
 
-func runHackGame(ctx context.Context, provider input.Provider, screen render.Screen, width, height int) error {
+func runHackGame(ctx context.Context, provider input.Provider, screen render.Screen, l launch) error {
 	ticker := clock.NewTicker(hack.TickPeriod)
 	defer ticker.Stop()
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	module := hack.NewModule(ticker, screen, provider, rng)
+	module := hack.NewModule(ticker, screen, provider, rng).WithBoard(l.Board).WithSave(l.Save, l.Resume)
 	return module.Run(ctx)
 }

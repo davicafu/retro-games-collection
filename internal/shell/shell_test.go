@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -830,6 +831,22 @@ func TestPlayingView_ShowsControlsOfTheRunningGame(t *testing.T) {
 		}
 		if name == "Runner" && strings.Contains(view, "move") {
 			t.Fatalf("Runner hint must not say move, got %q", view)
+		}
+	}
+}
+
+func TestMenuListIsCenteredInTheFrame(t *testing.T) {
+	ansi := regexp.MustCompile("\x1b\\[[0-9;]*m")
+	for _, line := range strings.Split(ansi.ReplaceAllString(New().menuView(), ""), "\n") {
+		r := []rune(line)
+		if len(r) < 2 || r[0] != '║' || !strings.ContainsAny(line, "┌│└") {
+			continue
+		}
+		inside := string(r[1 : len(r)-1])
+		left := len(inside) - len(strings.TrimLeft(inside, " "))
+		right := len(inside) - len(strings.TrimRight(inside, " "))
+		if left != right {
+			t.Fatalf("list line has %d columns of margin on the left and %d on the right: %q", left, right, line)
 		}
 	}
 }
