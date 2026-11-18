@@ -1,4 +1,4 @@
-# Regro Collection Games
+# Retro Games Collection
 
 A progressive collection of terminal games built in Go as a technical laboratory for architecture, algorithms, game loops, input handling, collisions, reusable runtime patterns, and deterministic simulations.
 
@@ -77,31 +77,57 @@ Actual gameplay runtime and loops must remain framework-independent.
 
 # Hack the System
 
-The final project is envisioned as a retro-futuristic fake hacking terminal game.
+The final game is a retro-futuristic fake hacking terminal, inspired by 80s
+hacker movies. It is not real hacking: it mixes a narrative puzzle, arcade
+mini-games and a pressure system. The game text is in Spanish; commands and
+common IT terms stay in English.
 
-It is not real hacking.
+You are a ghost at a terminal. Each level is a network: start at its
+gateway, read the files, work out passwords and keys from the clues, and
+reach the secret the client asked for. Five levels, each a company, each
+one tying the story closer to the next.
 
-Instead, it combines arcade mechanics, puzzles, pressure systems, and narrative presentation inspired by 80s hacker movies.
+## Commands
 
-Possible gameplay modules:
+| Command                    | What it does                                   |
+| -------------------------- | ---------------------------------------------- |
+| `help`                     | List the commands                              |
+| `ls`, `cat <file>`         | List and read the machine's files              |
+| `scan`                     | Machines this one reaches, and their state     |
+| `connect <machine>`        | Go to a machine; a protected one asks for a breach, a password or a key |
+| `decrypt <file> <key>`     | Decrypt a file                                 |
+| `map`                      | Network map: arrows to pick, enter to connect, backspace to go back |
+| `hint`                     | A vague hint, then an explicit one; costs points |
+| `clear`                    | Clear the screen                               |
 
-- **Crack Password**  
-  Identify patterns before time runs out.
+`↑↓` walk the command history. `ctrl+c` quits, since `q` is a letter here.
 
-- **Bypass Firewall**  
-  Navigate a cursor through hostile network paths.
+## Breaches
 
-- **Decrypt Data**  
-  Logic-combination puzzles inspired by Mastermind.
+A protected machine opens with a short arcade breach:
 
-- **Packet Runner**  
-  Deliver packets between nodes while avoiding antivirus systems.
+- **ICE**: reach the port `[]` through a maze before a sentry catches you.
+- **SYNC**: lock a moving signal inside a window, several times, with few misses.
+- **GATES**: set the input switches so every logic gate outputs what the core asks for.
 
-- **Trace Escape**  
-  Every action increases detection level; complete the objective before getting traced.
+Every breach has a time limit, and each level makes them harder.
 
-- **Boss System**  
-  Enemy AI dynamically changes board rules and constraints.
+## Trace and score
+
+Every mistake raises the trace: an unknown command, a wrong password, a lost
+breach. A honeypot raises it hard. At 100% the run is over. Each level
+starts at 1000 points and loses 100 per hint and 5 per point of trace; the
+final score adds up the levels.
+
+## Levels
+
+1. **Meridian Grid**: the tutorial. Follow the clues to a password and a key.
+2. **Helix Biomedical**: a firewall guards a machine until it is yours, and the final file is encrypted.
+3. **Kestrel Analytics**: a password split across machines, a honeypot that looks open, and a key to recover before the core.
+4. **Cormoran Shipping**: an IDS watches some machines (`!` on the map, "vigilada" in `scan`). On them the trace rises on its own until you own the IDS machine.
+5. **Halcyon Group**: the company behind the others. Watched machines again, and the key machine locks after two wrong passwords; then only an ICE breach opens it.
+
+Clearing a level saves the run (see [High scores and saved runs](#high-scores-and-saved-runs)).
 
 ---
 
@@ -117,9 +143,9 @@ Possible gameplay modules:
 ## Clone the repository
 
 ```bash
-git clone https://github.com/your-user/retro-collection-games.git
+git clone https://github.com/davicafu/retro-games-collection.git
 
-cd retro-collection-games
+cd retro-games-collection
 ```
 
 ---
@@ -132,15 +158,45 @@ go mod tidy
 
 ---
 
-## Run the launcher
+## Quickstart
+
+Build once, then run the binary. It opens the launcher at once; `go run .`
+also works, but compiles the whole project before every start.
 
 ```bash
-go run .
+go build -o retro-games .
+./retro-games
+```
+
+Rebuild after changing the code. Example output of `./retro-games --help`:
+
+```text
+Progressive terminal games laboratory
+
+Usage:
+  retro-games [flags]
+  retro-games [command]
+
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  play        Run a game directly
+
+Flags:
+  -h, --help   help for retro-games
+
+Use "retro-games [command] --help" for more information about a command.
 ```
 
 ---
 
 ## Run a specific game
+
+```bash
+./retro-games play snake
+```
+
+Or without building first:
 
 ```bash
 go run . play snake
@@ -158,5 +214,25 @@ go run . play hack
 ```
 
 Game names are case-insensitive. An unknown name opens the launcher menu.
+
+---
+
+## High scores and saved runs
+
+Every game keeps its five best results. When a finished game enters its
+table you type a name (up to 12 characters; empty is saved as `ANON`).
+Sokoban, which has no score, ranks finished runs by levels completed and
+then by less total time. In the launcher, press `r` to read the tables,
+`←→` to switch game and `esc` to go back.
+
+Hack saves your run each time you clear a level. Choosing Hack with a saved
+run asks whether to continue it or start a new game; a new game, a win or a
+run ended by the trace deletes the save.
+
+Both live in the user's config directory, under `retro-games`
+(`records.json` and `saves.json`; on macOS
+`~/Library/Application Support/retro-games`). An unreadable file is renamed
+to `<name>.bad` and a fresh one starts; if the directory cannot be used,
+records last only for the session.
 
 ---

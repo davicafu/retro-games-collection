@@ -4,7 +4,7 @@ One folder per feature, named `YYYY-MM-DD-<feature>`. This is the single home fo
 
 ## Conventions for new features
 
-- Create `docs/features/<date>-<feature>/` before the first code change.
+- Create `docs/<date>-<feature>/` before the first code change.
 - Keep goal, scope, non-goals, checklist, acceptance criteria, and evidence in that folder.
 - Do not use `openspec/`, `docs/superpowers/`, or `odd/tasks/`.
 
@@ -34,6 +34,7 @@ One folder per feature, named `YYYY-MM-DD-<feature>`. This is the single home fo
 | 2026-11-14 | [rack](2026-11-14-rack/) | feature doc: specs, tasks, evidence, log |
 | 2026-11-16 | [defrag](2026-11-16-defrag/) | feature doc: specs, tasks, evidence, log |
 | 2026-11-16 | [hack](2026-11-16-hack/) | feature doc: specs, tasks, evidence, log |
+| 2026-11-18 | [records](2026-11-18-records/) | feature doc: specs, tasks, evidence, log |
 
 ## Historical notes
 
