@@ -7,7 +7,9 @@ import (
 	"context"
 
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/input"
+	"github.com/davidbarreiro/cli-games-collection/internal/engine/records"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/render"
+	"github.com/davidbarreiro/cli-games-collection/internal/engine/ui/highscore"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/ui/overlay"
 )
 
@@ -36,6 +38,26 @@ type OverTitler interface {
 	OverTitle() string
 }
 
+// Ranked is optionally implemented by a Round whose result goes on its
+// game's high score table; the name is asked by the Session.
+type Ranked interface {
+	Result() records.Entry
+}
+
+// Board is a game's high score table.
+type Board = highscore.Board
+
+// Option configures a Session.
+type Option func(*Session)
+
+// WithBoard gives the session its game's high score table: a Ranked round
+// whose result enters it asks for a name before the end, and the end shows
+// the table.
+func WithBoard(b Board) Option { return func(s *Session) { s.board = b } }
+
+// TitleHighScore titles the overlay that asks for a name.
+const TitleHighScore = highscore.Title
+
 // Overlay option IDs.
 const (
 	OptionContinue = "continue"
@@ -51,16 +73,32 @@ type Session struct {
 	overlay  *overlay.Model
 	paused   bool
 	quit     bool
+
+	board Board
+	// naming asks for the name of a result that entered the table.
+	naming *highscore.Prompt
+	// rank is the last result's place on the table, from 1, or 0; saveErr
+	// is why it could not be saved.
+	rank    int
+	saveErr error
 }
 
 // New starts a session with a first round from newRound; Restart calls it again.
-func New(newRound func() Round) *Session {
-	return &Session{newRound: newRound, round: newRound()}
+func New(newRound func() Round, opts ...Option) *Session {
+	s := &Session{newRound: newRound, round: newRound()}
+	for _, o := range opts {
+		o(s)
+	}
+	return s
 }
 
 func (s *Session) Init(context.Context) error { return nil }
 
 func (s *Session) Update(ctx context.Context, frame input.FrameInput) error {
+	if s.naming != nil {
+		s.updateName(frame)
+		return nil
+	}
 	if s.overlay != nil {
 		s.updateOverlay(frame)
 		return nil
@@ -84,9 +122,48 @@ func (s *Session) Update(ctx context.Context, frame input.FrameInput) error {
 		return err
 	}
 	if s.round.Over() {
-		s.openGameOver()
+		s.end()
 	}
 	return nil
+}
+
+// end asks for a name when the round's result enters the table, and
+// otherwise opens the end overlay.
+func (s *Session) end() {
+	s.rank, s.saveErr = 0, nil
+	if r, ok := s.round.(Ranked); ok && s.board != nil {
+		if e := r.Result(); s.board.Qualifies(e) {
+			s.naming = highscore.NewPrompt(e)
+			s.openName()
+			return
+		}
+	}
+	s.openGameOver()
+}
+
+func (s *Session) openName() {
+	m := s.naming.Overlay()
+	s.overlay = &m
+}
+
+// updateName types the name; enter or esc saves the result.
+func (s *Session) updateName(frame input.FrameInput) {
+	if !s.naming.Update(frame) {
+		s.openName()
+		return
+	}
+	e := s.naming.Entry()
+	s.naming = nil
+	s.rank, s.saveErr = s.board.Add(e)
+	s.openGameOver()
+}
+
+// table is the end overlay's high score section.
+func (s *Session) table() []overlay.Section {
+	if _, ok := s.round.(Ranked); !ok || s.board == nil {
+		return nil
+	}
+	return []overlay.Section{overlay.Text(highscore.Lines(s.board.Top(), s.rank, s.saveErr)...)}
 }
 
 func (s *Session) updateOverlay(frame input.FrameInput) {
@@ -145,7 +222,7 @@ func (s *Session) openGameOver() {
 	if t, ok := s.round.(OverTitler); ok {
 		title = t.OverTitle()
 	}
-	m := overlay.NewAction(title, s.round.Summary(), []overlay.Option{
+	m := overlay.NewAction(title, append(s.round.Summary(), s.table()...), []overlay.Option{
 		{ID: OptionRestart, Label: "Restart", Enabled: true},
 		{ID: OptionMenu, Label: "Menu", Enabled: true},
 	})
