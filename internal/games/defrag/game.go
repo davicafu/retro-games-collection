@@ -48,10 +48,20 @@ const (
 
 	PointsSoftDrop = 1
 	PointsHardDrop = 2
+
+	// BonusTicks is how long a clear's points show beside the disk: 2 s.
+	BonusTicks = 120
 )
 
-// pointsForRows is the score of clearing 1 to 4 rows at once, times the level.
-var pointsForRows = [...]int{0, 100, 300, 500, 800}
+// pointsForRows is the score of clearing 1 to 4 rows at once, times the
+// level: it grows with the square of the rows, so clearing them together
+// pays a bonus over clearing them one by one.
+var pointsForRows = [...]int{0, 100, 400, 900, 1600}
+
+// Bonus is the last clear's rows and points, shown for a while.
+type Bonus struct {
+	Rows, Points int
+}
 
 // Kind is one of the seven shapes of four cells.
 type Kind int
@@ -129,10 +139,12 @@ type Game struct {
 	clearing     []int
 	clearClock   int
 
-	score   int
-	sectors int
-	level   int
-	over    bool
+	score      int
+	sectors    int
+	level      int
+	over       bool
+	bonus      Bonus
+	bonusClock int
 }
 
 func NewGame(cfg Config) *Game {
@@ -194,6 +206,9 @@ func (g *Game) spawn() {
 func (g *Game) Step(in Input) {
 	if g.over {
 		return
+	}
+	if g.bonusClock > 0 {
+		g.bonusClock--
 	}
 	if len(g.clearing) > 0 {
 		if g.clearClock++; g.clearClock >= ClearTicks {
@@ -271,7 +286,9 @@ func (g *Game) fits(dx, dy int) bool {
 func (g *Game) lockFragment() {
 	g.disk.Place(g.fragment.Shape, g.fragment.Pos, int(g.fragment.Kind)+1)
 	if rows := g.disk.FullRows(); len(rows) > 0 {
-		g.score += pointsForRows[len(rows)] * g.level
+		points := pointsForRows[len(rows)] * g.level
+		g.score += points
+		g.bonus, g.bonusClock = Bonus{Rows: len(rows), Points: points}, BonusTicks
 		g.clearing, g.clearClock = rows, 0
 		return
 	}
@@ -297,10 +314,13 @@ func (g *Game) Fragment() Fragment {
 	f.Shape.Cells = slices.Clone(f.Shape.Cells)
 	return f
 }
-func (g *Game) Next() Kind                   { return g.queue[0] }
-func (g *Game) Clearing() []int              { return slices.Clone(g.clearing) }
-func (g *Game) ClearClock() int              { return g.clearClock }
-func (g *Game) Score() int                   { return g.score }
+func (g *Game) Next() Kind      { return g.queue[0] }
+func (g *Game) Clearing() []int { return slices.Clone(g.clearing) }
+func (g *Game) ClearClock() int { return g.clearClock }
+func (g *Game) Score() int      { return g.score }
+
+// Bonus is the last clear's rows and points while they still show.
+func (g *Game) Bonus() (Bonus, bool)         { return g.bonus, g.bonusClock > 0 }
 func (g *Game) Sectors() int                 { return g.sectors }
 func (g *Game) Level() int                   { return g.level }
 func (g *Game) Over() bool                   { return g.over }

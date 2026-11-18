@@ -97,4 +97,13 @@ func Draw(screen render.Screen, g *Game, guides bool) {
 	set(left+1, 8, fmt.Sprint(g.Level()), render.ColorDefault)
 	set(left+1, 10, "SECTORS", render.ColorDefault)
 	set(left+1, 11, fmt.Sprint(g.Sectors()), render.ColorDefault)
+	if b, ok := g.Bonus(); ok {
+		if title := bonusTitles[b.Rows]; title != "" {
+			set(left+1, 13, title, render.ColorYellow)
+		}
+		set(left+1, 14, fmt.Sprintf("+%d", b.Points), render.ColorYellow)
+	}
 }
+
+// bonusTitles name clears of several rows at once.
+var bonusTitles = map[int]string{2: "DOUBLE!", 3: "TRIPLE!", 4: "DEFRAG!"}

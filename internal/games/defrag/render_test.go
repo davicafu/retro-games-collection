@@ -112,3 +112,16 @@ func TestGuidesOffHideTheDotsAndTheShadow(t *testing.T) {
 		t.Fatalf("the fragment must still show, got %q", got)
 	}
 }
+
+func TestDrawTheBonusBesideTheDisk(t *testing.T) {
+	for rows, title := range map[int]string{1: "", 2: "DOUBLE!", 3: "TRIPLE!", 4: "DEFRAG!"} {
+		g := newTestGame(Bar)
+		g.bonus, g.bonusClock = Bonus{Rows: rows, Points: 1234}, BonusTicks
+		s := render.NewBufferScreen(80, 24)
+		Draw(s, g, true)
+		snap := s.Snapshot()
+		if !strings.Contains(snap, "+1234") || title != "" && !strings.Contains(snap, title) {
+			t.Fatalf("%d rows: want %q and +1234 beside the disk:\n%s", rows, title, snap)
+		}
+	}
+}

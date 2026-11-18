@@ -214,7 +214,7 @@ func TestClearingFourRowsAtOnceScoresMostAndLevelsUp(t *testing.T) {
 	g.fragment.Shape = g.fragment.Shape.Rotate()
 	g.fragment.Pos = pt(-2, 0)
 	g.Step(Input{HardDrop: true})
-	if want := PointsHardDrop*(Height-4) + 800; g.Score() != want {
+	if want := PointsHardDrop*(Height-4) + 1600; g.Score() != want {
 		t.Fatalf("score %d, want %d", g.Score(), want)
 	}
 	steps(g, ClearTicks, Input{})
@@ -305,5 +305,45 @@ func TestTheDealIsShuffled(t *testing.T) {
 	}
 	if inOrder == 5 {
 		t.Fatalf("every game deals the shapes in the same order")
+	}
+}
+
+func TestClearingRowsTogetherPaysABonus(t *testing.T) {
+	for rows, want := range map[int]int{1: 100, 2: 400, 3: 900, 4: 1600} {
+		g := newTestGame(Bar)
+		g.level = 3
+		for y := Height - rows; y < Height; y++ {
+			fill(g, y, 0)
+		}
+		g.fragment.Shape = g.fragment.Shape.Rotate()
+		g.fragment.Pos = pt(-2, 0)
+		g.Step(Input{HardDrop: true})
+		points := g.Score() - PointsHardDrop*(Height-4)
+		if points != 3*want {
+			t.Fatalf("%d rows on level 3 score %d, want %d", rows, points, 3*want)
+		}
+		if b, ok := g.Bonus(); !ok || b.Rows != rows || b.Points != 3*want {
+			t.Fatalf("%d rows: bonus %+v shown %v", rows, b, ok)
+		}
+	}
+}
+
+func TestTheBonusShowsForTwoSeconds(t *testing.T) {
+	g := newTestGame(Bar, Square, Square)
+	if _, ok := g.Bonus(); ok {
+		t.Fatalf("no bonus before a clear")
+	}
+	fill(g, Height-1, 3, 4, 5, 6)
+	g.Step(Input{HardDrop: true})
+	steps(g, BonusTicks-1, Input{})
+	if _, ok := g.Bonus(); !ok {
+		t.Fatalf("the bonus must still show after %d ticks", BonusTicks-1)
+	}
+	g.Step(Input{})
+	if _, ok := g.Bonus(); ok {
+		t.Fatalf("the bonus must go after %d ticks", BonusTicks)
+	}
+	if got := (time.Duration(BonusTicks) * TickPeriod).Round(time.Millisecond); got != 2*time.Second {
+		t.Fatalf("bonus shows %v, want 2s", got)
 	}
 }
