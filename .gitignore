@@ -1,1 +1,4 @@
 .worktrees/
+# Local AI runtime state
+.atl/
+/retro-games
