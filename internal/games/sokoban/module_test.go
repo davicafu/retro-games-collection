@@ -9,7 +9,9 @@ import (
 
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/grid"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/input"
+	"github.com/davidbarreiro/cli-games-collection/internal/engine/records"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/render"
+	"github.com/davidbarreiro/cli-games-collection/internal/engine/ui/highscore"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/ui/overlay"
 	"github.com/mattn/go-runewidth"
 )
@@ -1171,4 +1173,58 @@ func (s *trackedScreen) FailPresentOnCall(call int, err error) *trackedScreen {
 	s.failOnCall = call
 	s.failErr = err
 	return s
+}
+
+func TestAFinishedRunEntersTheHighScoresWithItsName(t *testing.T) {
+	originalRunLevelFn, originalShowLevelCompleteFn, originalShowFinalSummaryFn, originalShowTableFn := runLevelFn, showLevelCompleteFn, showFinalSummaryFn, showTableFn
+	defer func() {
+		runLevelFn, showLevelCompleteFn, showFinalSummaryFn, showTableFn = originalRunLevelFn, originalShowLevelCompleteFn, originalShowFinalSummaryFn, originalShowTableFn
+	}()
+	runLevelFn = func(Module, context.Context, *Game, int, time.Duration, *runSession) (levelResult, error) {
+		return levelResult{kind: levelResultCompleted, elapsed: 30 * time.Second}, nil
+	}
+	showLevelCompleteFn = func(Module, context.Context, int, time.Duration) error { return nil }
+	var shown []string
+	summaries := 0
+	showTableFn = func(_ Module, _ context.Context, table []string) error {
+		shown = table
+		return nil
+	}
+	showFinalSummaryFn = func(Module, context.Context, runSummary) error {
+		summaries++
+		return nil
+	}
+	book, _ := records.Open("")
+	book.Add("sokoban", records.Entry{Name: "slow", Score: len(Levels), Seconds: 99999})
+	module := NewModule(render.NewBufferScreen(60, 24), &scriptedProvider{frames: []input.FrameInput{
+		{Text: []rune("bo")},
+		{Actions: []input.Action{input.ActionSelect}},
+	}}).WithBoard(book.Board("sokoban"))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := module.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	want := records.Entry{Name: "bo", Score: len(Levels), Seconds: 30 * len(Levels)}
+	if top := book.Top("sokoban"); len(top) != 2 || top[0] != want {
+		t.Fatalf("a finished run ranks by levels, then less time: %+v", top)
+	}
+	table := strings.Join(shown, "\n")
+	if !strings.Contains(table, "1. bo") || !strings.Contains(table, "◂") || !strings.Contains(table, "2. slow") || summaries != 1 {
+		t.Fatalf("the table shows before the final summary:\n%s", table)
+	}
+}
+
+func TestTheTableScreenWaitsForAKey(t *testing.T) {
+	screen := render.NewBufferScreen(80, 24)
+	module := NewModule(screen, &scriptedProvider{frames: []input.FrameInput{{}, {Actions: []input.Action{input.ActionSelect}}}})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := module.showTable(ctx, highscore.Lines([]records.Entry{{Name: "bo", Score: 10, Seconds: 61}}, 1, nil)); err != nil {
+		t.Fatal(err)
+	}
+	if out := screen.Snapshot(); !strings.Contains(out, "HIGH SCORES") || !strings.Contains(out, "1. bo") || !strings.Contains(out, "01:01") {
+		t.Fatalf("the table screen:\n%s", out)
+	}
 }

@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/input"
+	"github.com/davidbarreiro/cli-games-collection/internal/engine/records"
 	"github.com/davidbarreiro/cli-games-collection/internal/engine/render"
+	"github.com/davidbarreiro/cli-games-collection/internal/engine/ui/highscore"
 	gameoverlay "github.com/davidbarreiro/cli-games-collection/internal/engine/ui/overlay"
 	"github.com/mattn/go-runewidth"
 )
@@ -155,12 +157,23 @@ var (
 	showFinalSummaryFn = func(m Module, ctx context.Context, summary runSummary) error {
 		return m.showFinalSummary(ctx, summary)
 	}
+	showTableFn = func(m Module, ctx context.Context, table []string) error {
+		return m.showTable(ctx, table)
+	}
 )
 
 // Module is the runnable entry point for Sokoban.
 type Module struct {
 	Screen   render.Screen
 	Provider input.Provider
+	board    highscore.Board
+}
+
+// WithBoard gives the module its high score table: a finished run ranks by
+// levels completed, then by less total time.
+func (m Module) WithBoard(b highscore.Board) Module {
+	m.board = b
+	return m
 }
 
 // NewModule creates a new Sokoban module.
@@ -212,7 +225,45 @@ func (m Module) Run(ctx context.Context) error {
 		}
 	}
 
-	return showFinalSummaryFn(m, ctx, session.summary(runResultCompleted))
+	summary := session.summary(runResultCompleted)
+	table, err := m.record(ctx, summary)
+	if err != nil {
+		return err
+	}
+	if table != nil {
+		if err := showTableFn(m, ctx, table); err != nil {
+			return err
+		}
+	}
+	return showFinalSummaryFn(m, ctx, summary)
+}
+
+// record enters a finished run on the high score table, asking for a name
+// when it gets on it, and returns the table's lines.
+func (m Module) record(ctx context.Context, summary runSummary) ([]string, error) {
+	if m.board == nil {
+		return nil, nil
+	}
+	e := records.Entry{Score: summary.levelsCompleted, Seconds: int(summary.totalTime / time.Second)}
+	if !m.board.Qualifies(e) {
+		return highscore.Lines(m.board.Top(), 0, nil), nil
+	}
+	prompt := highscore.NewPrompt(e)
+	for {
+		m.Screen.Clear()
+		gameoverlay.Draw(m.Screen, prompt.Overlay())
+		if err := m.Screen.Present(); err != nil {
+			return nil, err
+		}
+		if prompt.Update(m.Provider.Poll()) {
+			break
+		}
+		if err := sleepWithContext(ctx, 50*time.Millisecond); err != nil {
+			return nil, err
+		}
+	}
+	rank, err := m.board.Add(prompt.Entry())
+	return highscore.Lines(m.board.Top(), rank, err), nil
 }
 
 // runLevel runs a single level until the player wins or quits.
@@ -568,4 +619,23 @@ func fmtDuration(d time.Duration) string {
 	sec := (total % 60000) / 1000
 	millis := total % 1000
 	return fmt.Sprintf("%02d:%02d.%03d", min, sec, millis)
+}
+
+// showTable shows the high score table until a key is pressed; the final
+// summary has no room left for it.
+func (m Module) showTable(ctx context.Context, table []string) error {
+	model := gameoverlay.NewInfo("HIGH SCORES", []gameoverlay.Section{gameoverlay.Text(table[1:]...), gameoverlay.Text("Pulsa una tecla...")})
+	for {
+		m.Screen.Clear()
+		gameoverlay.Draw(m.Screen, model)
+		if err := m.Screen.Present(); err != nil {
+			return err
+		}
+		if len(m.Provider.Poll().Actions) > 0 {
+			return nil
+		}
+		if err := sleepWithContext(ctx, 50*time.Millisecond); err != nil {
+			return err
+		}
+	}
 }
