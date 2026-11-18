@@ -63,7 +63,7 @@ func TestTheTerminalTakesQAndSpaceAsText(t *testing.T) {
 		t.Fatalf("quit %v buffer %q: typed keys must be text", s.ShouldQuit(), g.Buffer())
 	}
 	update(t, s, press(input.ActionBackspace), press(input.ActionBackspace), press(input.ActionSelect))
-	if !strings.Contains(output(g), "Project Lantern") {
+	if !strings.Contains(output(g), "Proyecto Lantern") {
 		t.Fatalf("enter must run the line:\n%s", g.Text())
 	}
 	update(t, s, press(input.ActionUp))
@@ -87,19 +87,24 @@ func TestOnTheMapArrowsMoveAndEnterConnects(t *testing.T) {
 
 func TestTheEndTitlesAndSummary(t *testing.T) {
 	g := newTestGame(Won)
-	g.trace = 36
 	s := sessionOf(g)
 	update(t, s, typed("connect mail"), press(input.ActionSelect), press(), press())
 	update(t, s, typed("connect vault"), press(input.ActionSelect), typed("pixel"), press(input.ActionSelect))
 	update(t, s, typed("decrypt core.key.enc ember"), press(input.ActionSelect))
 	update(t, s, typed("connect core"), press(input.ActionSelect), press(), press())
-	update(t, s, typed("cat lantern.txt"), press(input.ActionSelect))
+	update(t, s, typed("cat lantern.txt"), press(input.ActionSelect), press(input.ActionSelect))
+	if g.Level() != 1 {
+		t.Fatalf("level %d, want level 2 after level 1's secret and enter", g.Level())
+	}
+	at(g, len(levels)-1, "core")
+	g.trace = 36
+	update(t, s, typed("decrypt halcyon.enc lhk"), press(input.ActionSelect))
 	m, open := s.Overlay()
-	if !open || m.Title() != "ROOT ACCESS" {
-		t.Fatalf("title %q, want ROOT ACCESS", m.Title())
+	if !open || m.Title() != "ACCESO ROOT" {
+		t.Fatalf("title %q, want ACCESO ROOT", m.Title())
 	}
 	content := strings.Join(m.Sections()[0].Lines, "\n")
-	for _, want := range []string{"Trace: 36%", "Time: 00:00"} {
+	for _, want := range []string{"Puntuación: 1820", "Nivel: 5/5", "Rastreo: 36%", "Pistas: 0", "Tiempo: 00:00"} {
 		if !strings.Contains(content, want) {
 			t.Fatalf("summary %q missing %q", content, want)
 		}
@@ -109,8 +114,8 @@ func TestTheEndTitlesAndSummary(t *testing.T) {
 	g.trace = 90
 	s = sessionOf(g)
 	update(t, s, typed("nope"), press(input.ActionSelect), typed("nope"), press(input.ActionSelect), typed("nope"), press(input.ActionSelect))
-	if m, open := s.Overlay(); !open || m.Title() != "TRACE COMPLETE" {
-		t.Fatalf("a full trace must end with TRACE COMPLETE")
+	if m, open := s.Overlay(); !open || m.Title() != "RASTREO COMPLETO" {
+		t.Fatalf("a full trace must end with RASTREO COMPLETO")
 	}
 }
 
@@ -133,7 +138,7 @@ func TestModuleRunRendersAndQuits(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("module did not quit")
 	}
-	if snap := screen.Snapshot(); !strings.Contains(snap, "ghost@gate:~$") || !strings.Contains(snap, "Trace") {
+	if snap := screen.Snapshot(); !strings.Contains(snap, "ghost@gate:~$") || !strings.Contains(snap, "Rastreo") {
 		t.Fatalf("expected the prompt and the HUD on screen, got:\n%s", snap)
 	}
 }

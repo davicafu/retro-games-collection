@@ -100,7 +100,7 @@ func TestHelpLsCatAndClear(t *testing.T) {
 		}
 	}
 	run(g, "cat readme.txt")
-	if !strings.Contains(output(g), "Project Lantern") {
+	if !strings.Contains(output(g), "Proyecto Lantern") {
 		t.Fatalf("cat must print the file:\n%s", output(g))
 	}
 	run(g, "clear")
@@ -115,7 +115,7 @@ func TestHelpLsCatAndClear(t *testing.T) {
 func TestFailedCommandsRaiseTheTrace(t *testing.T) {
 	g := newTestGame(Won)
 	run(g, "sudo rm -rf /")
-	if !strings.Contains(output(g), "command not found") || g.Trace() != TraceFailed {
+	if !strings.Contains(output(g), "comando no encontrado") || g.Trace() != TraceFailed {
 		t.Fatalf("output %q trace %d", output(g), g.Trace())
 	}
 	run(g, "cat nothing.txt")
@@ -133,7 +133,7 @@ func TestScanShowsLinkedNodesAndTheirState(t *testing.T) {
 	g := newTestGame(Won)
 	run(g, "scan")
 	out := output(g)
-	for _, want := range []string{"mail", "mail relay", "dev", "ICE", "SYNC"} {
+	for _, want := range []string{"mail", "servidor de correo", "dev", "ICE", "SYNC"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("scan missing %q:\n%s", want, out)
 		}
@@ -164,7 +164,7 @@ func TestConnectBreachesThenOwnsTheNode(t *testing.T) {
 func TestALostBreachRaisesTheTraceAndKeepsYouOut(t *testing.T) {
 	g := newTestGame(Lost)
 	run(g, "connect dev")
-	if g.Node() != "gate" || g.Owned("dev") || g.Trace() != TraceBreach || g.Mode() != ModeTerminal {
+	if g.Node() != "gate" || g.Owned("dev") || g.Trace() != difficulties[0].BreachTrace || g.Mode() != ModeTerminal {
 		t.Fatalf("node %q owned %v trace %d mode %v", g.Node(), g.Owned("dev"), g.Trace(), g.Mode())
 	}
 }
@@ -173,7 +173,7 @@ func TestAPasswordGuardsTheVaultAndIsMasked(t *testing.T) {
 	g := newTestGame(Won)
 	run(g, "connect mail")
 	run(g, "connect vault")
-	if !strings.Contains(g.Prompt(), "password") {
+	if !strings.Contains(g.Prompt(), "contraseña") {
 		t.Fatalf("prompt %q, want a password prompt", g.Prompt())
 	}
 	run(g, "kitty")
@@ -225,8 +225,8 @@ func TestTheCoreNeedsTheKeyThenReadingLanternWins(t *testing.T) {
 		t.Fatalf("with the key the core's breach must open it, at %q", g.Node())
 	}
 	run(g, "cat lantern.txt")
-	if !g.Over() || !g.Won() {
-		t.Fatalf("reading the final file must win: over %v won %v", g.Over(), g.Won())
+	if g.Over() || !strings.Contains(output(g), "NIVEL 1 SUPERADO") {
+		t.Fatalf("reading the final file must clear the level: over %v\n%s", g.Over(), output(g))
 	}
 }
 
@@ -291,7 +291,67 @@ func TestTheMapMovesBetweenNodesAndConnects(t *testing.T) {
 func TestAMachineOutOfReachAsksNoPassword(t *testing.T) {
 	g := newTestGame(Won)
 	run(g, "connect vault")
-	if strings.Contains(g.Prompt(), "password") || g.Trace() != TraceFailed || !strings.Contains(output(g), "no route") {
+	if strings.Contains(g.Prompt(), "contraseña") || g.Trace() != TraceFailed || !strings.Contains(output(g), "sin ruta") {
 		t.Fatalf("prompt %q trace %d output %q, want no route from the gateway", g.Prompt(), g.Trace(), output(g))
+	}
+}
+
+func TestHintGivesTheNextStepAndCostsPoints(t *testing.T) {
+	g := newTestGame(Won)
+	run(g, "hint")
+	first := output(g)
+	if !strings.Contains(first, "scan") || g.Hints() != 1 || g.Score() != ScoreStart-HintCost {
+		t.Fatalf("hint %q hints %d score %d", first, g.Hints(), g.Score())
+	}
+	run(g, "hint")
+	second := output(g)
+	if second == first || !strings.Contains(second, "connect") || g.Hints() != 2 {
+		t.Fatalf("a second hint must be more explicit: %q, hints %d", second, g.Hints())
+	}
+	run(g, "hint")
+	if !strings.Contains(output(g), "connect") || g.Hints() != 2 || g.Trace() != 0 {
+		t.Fatalf("with no hint left, hint repeats the last one for free: hints %d trace %d", g.Hints(), g.Trace())
+	}
+}
+
+func TestHintsFollowProgress(t *testing.T) {
+	g := newTestGame(Won)
+	explicit := func() string {
+		run(g, "hint")
+		run(g, "hint")
+		return output(g)
+	}
+	run(g, "connect mail")
+	if out := explicit(); !strings.Contains(out, "pixel") {
+		t.Fatalf("after mail the hint is about the vault password: %q", out)
+	}
+	run(g, "connect vault")
+	run(g, "pixel")
+	if out := explicit(); !strings.Contains(out, "decrypt core.key.enc ember") {
+		t.Fatalf("in the vault the hint is about the key: %q", out)
+	}
+	run(g, "decrypt core.key.enc ember")
+	if out := explicit(); !strings.Contains(out, "connect core") {
+		t.Fatalf("with the key the hint points to the core: %q", out)
+	}
+	run(g, "connect core")
+	if out := explicit(); !strings.Contains(out, "cat lantern.txt") {
+		t.Fatalf("on the core the hint points to the secret: %q", out)
+	}
+	if g.Hints() != 8 {
+		t.Fatalf("hints %d, want 8", g.Hints())
+	}
+}
+
+func TestScoreFallsWithTraceAndHints(t *testing.T) {
+	g := newTestGame(Won)
+	run(g, "nope")
+	run(g, "hint")
+	if want := ScoreStart - TraceCost*TraceFailed - HintCost; g.Score() != want {
+		t.Fatalf("score %d, want %d", g.Score(), want)
+	}
+	g.trace, g.hints = 100, 10
+	if g.Score() != 0 {
+		t.Fatalf("score %d, want it never below 0", g.Score())
 	}
 }

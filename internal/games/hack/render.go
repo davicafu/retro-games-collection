@@ -47,8 +47,8 @@ func Draw(screen render.Screen, g *Game) {
 	f := render.CenterFrame(screen, Cols, Rows)
 	s := int(g.Elapsed().Seconds())
 	filled := g.Trace() * traceBarCells / 100
-	f.Draw(screen, fmt.Sprintf("Node: %s   Trace: %s%s %d%%   Time: %02d:%02d",
-		g.Node(), strings.Repeat("█", filled), strings.Repeat("░", traceBarCells-filled), g.Trace(), s/60, s%60))
+	f.Draw(screen, fmt.Sprintf("Nivel %d/%d  %s  Rastreo %s%s %d%%  Pistas %d  %02d:%02d",
+		g.Level()+1, len(levels), g.Node(), strings.Repeat("█", filled), strings.Repeat("░", traceBarCells-filled), g.Trace(), g.Hints(), s/60, s%60))
 	put := func(col, row int, text string, color render.Color) {
 		if row < 0 || row >= Rows {
 			return
@@ -68,7 +68,8 @@ func Draw(screen render.Screen, g *Game) {
 
 type putFunc func(col, row int, text string, color render.Color)
 
-// wrap cuts text into rows of at most Cols characters.
+// wrap cuts text into rows of at most Cols characters, between words
+// where it can.
 func wrap(text string) []string {
 	r := []rune(text)
 	if len(r) == 0 {
@@ -76,8 +77,15 @@ func wrap(text string) []string {
 	}
 	var out []string
 	for len(r) > Cols {
-		out = append(out, string(r[:Cols]))
-		r = r[Cols:]
+		cut, next := Cols, Cols
+		for i := Cols; i > 0; i-- {
+			if r[i] == ' ' {
+				cut, next = i, i+1
+				break
+			}
+		}
+		out = append(out, string(r[:cut]))
+		r = r[next:]
 	}
 	return append(out, string(r))
 }
@@ -108,16 +116,16 @@ func drawTerminal(put putFunc, g *Game) {
 func drawMap(put putFunc, g *Game) {
 	label := func(n Node) string { return "[" + n.ID + "]" }
 	centre := func(n Node) grid.Point { return grid.Point{X: n.Pos.X + len(label(n))/2, Y: n.Pos.Y} }
-	for _, n := range network {
+	for _, n := range g.Nodes() {
 		for _, id := range n.Links {
-			a, b := centre(n), centre(*nodeByID(id))
+			a, b := centre(n), centre(*nodeByID(g, id))
 			steps := max(abs(b.X-a.X), abs(b.Y-a.Y))
 			for i := 1; i < steps; i++ {
 				put(a.X+(b.X-a.X)*i/steps, a.Y+(b.Y-a.Y)*i/steps, "·", colorLink)
 			}
 		}
 	}
-	for _, n := range network {
+	for _, n := range g.Nodes() {
 		color := colorLocked
 		switch {
 		case n.ID == g.Selected():
@@ -128,22 +136,20 @@ func drawMap(put putFunc, g *Game) {
 			color = colorReachable
 		}
 		text := label(n)
+		if g.Watched(n.ID) {
+			text += "!"
+		}
 		if n.ID == g.Node() {
 			text += "@"
 		}
 		put(n.Pos.X, n.Pos.Y, text, color)
 		put(n.Pos.X, n.Pos.Y+1, g.Status(n.ID), color)
 	}
-	put(0, Rows-1, "[arrows] select  [enter] connect  [backspace] terminal   @ you are here", colorCommand)
+	put(0, Rows-1, "[flechas] elegir  [enter] conectar  [backspace] volver  @ tú  ! vigilada", colorCommand)
 }
 
-func nodeByID(id string) *Node {
-	for i := range network {
-		if network[i].ID == id {
-			return &network[i]
-		}
-	}
-	return nil
+func nodeByID(g *Game, id string) *Node {
+	return g.nodes[id]
 }
 
 func abs(x int) int {
@@ -155,14 +161,14 @@ func abs(x int) int {
 
 func drawBreach(put putFunc, b Breach) {
 	header := func(title, goal, keys string) {
-		put(0, 0, "BREACH: "+title+"   "+goal, colorError)
+		put(0, 0, "BRECHA: "+title+"   "+goal, colorError)
 		left := fmt.Sprintf("%2ds", (b.TicksLeft()+59)/60)
 		put(Cols-len(left), 0, left, colorSuccess)
 		put(0, Rows-1, keys, colorCommand)
 	}
 	switch b := b.(type) {
 	case *ice:
-		header("ICE", "reach the port [] before a sentry reaches you", "[arrows] move")
+		header("ICE", "llega al puerto [] sin que te pille un centinela", "[flechas] moverte")
 		x0, y0 := (Cols-2*ICEWidth)/2, 4
 		for y := 0; y < ICEHeight; y++ {
 			for x := 0; x < ICEWidth; x++ {
@@ -182,7 +188,7 @@ func drawBreach(put putFunc, b Breach) {
 		}
 		put(x0+2*b.Player().X, y0+b.Player().Y, spriteIntruder, colorSelected)
 	case *syncBreach:
-		header("SYNC", "lock the signal inside the key window, 3 times", "[space] lock")
+		header("SYNC", "fija la señal dentro de la ventana, 3 veces", "[espacio] fijar")
 		x0, y := (Cols-2*SyncBar)/2, 8
 		for i := 0; i < SyncBar; i++ {
 			sprite, color := "──", colorLink
@@ -192,12 +198,16 @@ func drawBreach(put putFunc, b Breach) {
 			put(x0+2*i, y, sprite, color)
 		}
 		put(x0+2*b.Cursor(), y-1, spriteCursor, colorSuccess)
-		put(x0, y+3, "locked "+marks(b.Hits(), SyncHits, "●", "○")+"   missed "+marks(b.Misses(), SyncMisses, "✕", "○"), colorCommand)
+		put(x0, y+3, "fijadas "+marks(b.Hits(), b.Need(), "●", "○")+"   falladas "+marks(b.Misses(), SyncMisses, "✕", "○"), colorCommand)
 	case *gates:
-		header("GATES", "make every output match what the core wants", "[←→] choose  [↑↓] set  [space] flip")
+		header("GATES", "haz que cada salida sea la que pide el core", "[←→] elegir  [↑↓] poner  [espacio] cambiar")
 		sw, gs, out, want := b.Switches(), b.Gates(), b.Outputs(), b.Target()
+		// Switches spread over the playfield: 12 columns apart for 5, fewer
+		// for more; each gate sits between the two switches it reads.
+		gap := min(12, (Cols-8)/len(sw))
+		left := (Cols - gap*(len(sw)-1) - 3) / 2
 		for i := range sw {
-			x := 8 + 12*i
+			x := left + gap*i
 			color := colorCommand
 			if i == b.Cursor() {
 				color = colorSelected
@@ -206,14 +216,14 @@ func drawBreach(put putFunc, b Breach) {
 			put(x, 5, "["+bit(sw[i])+"]", color)
 		}
 		for i := range gs {
-			x := 13 + 12*i
+			x := left + gap*i + gap/2
 			match := colorError
 			if out[i] == want[i] {
 				match = colorOwned
 			}
 			put(x, 8, gs[i].String(), colorCommand)
-			put(x, 10, "out "+bit(out[i]), match)
-			put(x, 11, "want "+bit(want[i]), colorSuccess)
+			put(x, 10, "sale "+bit(out[i]), match)
+			put(x, 11, "pide "+bit(want[i]), colorSuccess)
 		}
 	}
 }
